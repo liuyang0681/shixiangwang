@@ -1,6 +1,6 @@
-baseurl = "/"  # End your URL with a `/` trailing slash, e.g. `https://example.com/`.
-title = "Academic"
-copyright = "&copy; 2017 Your Name"
+baseurl = "http://www.shixiangwang.top/"  # End your URL with a `/` trailing slash, e.g. `https://example.com/`.
+title = "Shixiang Wang"
+copyright = "&copy; 2017 Shixiang Wang"
 theme = "hugo-academic"
 enableEmoji = true
 footnotereturnlinkcontents = "<sup>^</sup>"
@@ -9,7 +9,7 @@ preserveTaxonomyNames = true
 paginate = 10
 
 # Enable comments by entering your Disqus shortname
-disqusShortname = ""
+disqusShortname = "shixiangwangshawn"
 
 # Enable analytics by entering your Google Analytics tracking ID
 googleAnalytics = ""
@@ -39,21 +39,21 @@ defaultContentLanguageInSubdir = false
   font = "default"
 
   # Your details.
-  name = "Lena Smith"
-  role = "Professor of Artificial Intelligence"
+  name = "Shixiang Wang"
+  role = "Graduate student of ShanghaiTech. University"
 
   # Organizations/Affiliations.
   #   Separate multiple entries with a comma, using the form: `[ {name="Org1", url=""}, {name="Org2", url=""} ]`.
-  organizations = [ { name = "Stanford University", url = "" } ]
+  organizations = [ { name = "ShanghaiTech. University", url = "http://www.shanghaitech.edu.cn/" } ]
 
   gravatar = false  # Get your avatar from Gravatar.com? (true/false)
-  avatar = "portrait.jpg"  # Specify an avatar image (in `static/img/` folder) or delete value to disable avatar.
-  email = "test@example.org"
-  address = "Building 1 Room 1, Stanford University, California, 90210, USA"
-  office_hours = "Monday 10:00 to 13:00 or email for appointment"
-  phone = "888 888 88 88"
-  skype = "echo123"
-  telegram = ""
+  avatar = "portrait.png"  # Specify an avatar image (in `static/img/` folder) or delete value to disable avatar.
+  email = "wangshx@shanghaitech.edu.cn"
+  address = "Building 5 Room 912, ShanghaiTech. University, Shanghai, 201210, China"
+#  office_hours = "Monday 10:00 to 13:00 or email for appointment"
+#  phone = "888 888 88 88"
+#  skype = "echo123"
+#  telegram = ""
 
   # Enable Keybase in Contact widget by entering your keybase.io username.
   keybase = ""
@@ -81,10 +81,10 @@ defaultContentLanguageInSubdir = false
   #   1: Google Maps
   #   2: OpenStreetMap (Mapnik)
   #   3: OpenStreetMap (Mapbox)
-  map = 0
-  map_api_key = ""
-  latitude = "37.4275"
-  longitude = "-122.1697"
+  map = 1
+  map_api_key = "AIzaSyAeHx6hN3LBmWUEtDawZIs7oXbT9GG3co0"
+  latitude = "31.179316"
+  longitude = "121.592082"
   zoom = 15
 
   # Date and time format (refer to Go's date format: http://fuckinggodateformat.com )
@@ -104,7 +104,7 @@ defaultContentLanguageInSubdir = false
 
   # Enable global LaTeX math rendering?
   #   If false, you can enable it locally on a per page basis.
-  math = false
+  math = true
 
   # Highlight.js options
   #   highlight
@@ -135,7 +135,7 @@ defaultContentLanguageInSubdir = false
   #   https://sourcethemes.com/academic/post/writing-markdown-latex/#highlighting-options
   highlight = true
   highlight_languages = []
-  # highlight_style = "github"
+  highlight_style = "github"
 
   # Enable native social sharing buttons?
   sharing = true
@@ -205,22 +205,22 @@ defaultContentLanguageInSubdir = false
   [[params.social]]
     icon = "envelope"
     icon_pack = "fa"
-    link = "mailto:test@example.org"
+    link = "wangshx@shanghaitech.edu.cn"
 
   [[params.social]]
     icon = "twitter"
     icon_pack = "fa"
-    link = "//twitter.com/GeorgeCushen"
+    link = "https://twitter.com/WangShxiang"
 
   [[params.social]]
     icon = "google-scholar"
     icon_pack = "ai"
-    link = "https://scholar.google.co.uk/citations?user=sIwtMXoAAAAJ"
+    link = ""
 
   [[params.social]]
     icon = "github"
     icon_pack = "fa"
-    link = "//github.com/gcushen"
+    link = "//github.com/ShixiangWang"
 
 
 # Navigation Links
