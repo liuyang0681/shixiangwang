@@ -211,6 +211,11 @@ defaultContentLanguageInSubdir = false
     icon = "twitter"
     icon_pack = "fa"
     link = "https://twitter.com/WangShxiang"
+    
+  [[params.social]]
+    icon = "orcid"
+    icon_pack = "ai"
+    link = "https://orcid.org/0000-0001-9855-7357"
 
   [[params.social]]
     icon = "google-scholar"
@@ -251,14 +256,19 @@ defaultContentLanguageInSubdir = false
   url = "#projects"
   weight = 4
 
-[[menu.main]]
-  name = "Teaching"
-  url = "#teaching"
-  weight = 5
+#[[menu.main]]
+#  name = "Teaching"
+#  url = "#teaching"
+#  weight = 5
 
 [[menu.main]]
   name = "Contact"
   url = "#contact"
+  weight = 6
+  
+[[menu.main]]
+  name = "中文博客"
+  url = "https://shixiangwang.github.io"
   weight = 6
 
 # Taxonomies.

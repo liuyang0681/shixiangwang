@@ -1,5 +1,5 @@
 +++
-title = "Mobile visual clothing search"
+title = "This is an example of publication"
 date = "2013-07-01"
 
 # Authors. Comma separated list, e.g. `["Bob Smith", "David Jones"]`.
