@@ -271,6 +271,11 @@ defaultContentLanguageInSubdir = false
   url = "https://shixiangwang.github.io"
   weight = 6
 
+[[menu.main]]
+  name = "简书主页"
+  url = "http://www.jianshu.com/u/b6608e27dc74"
+  weight = 6
+
 # Taxonomies.
 [taxonomies]
   tag = "tags"
