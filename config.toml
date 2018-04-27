@@ -1,6 +1,6 @@
 baseurl = "http://www.shixiangwang.top/"  # End your URL with a `/` trailing slash, e.g. `https://example.com/`.
 title = "Shixiang Wang"
-copyright = "&copy; 2017 Shixiang Wang"
+copyright = "&copy; 2017-2018 Shixiang Wang"
 theme = "hugo-academic"
 enableEmoji = true
 footnotereturnlinkcontents = "<sup>^</sup>"
@@ -266,11 +266,6 @@ defaultContentLanguageInSubdir = false
   url = "#contact"
   weight = 6
   
-[[menu.main]]
-  name = "中文博客"
-  url = "https://shixiangwang.github.io"
-  weight = 6
-
 [[menu.main]]
   name = "简书主页"
   url = "http://www.jianshu.com/u/b6608e27dc74"
