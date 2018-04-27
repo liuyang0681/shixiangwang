@@ -24,7 +24,7 @@ options(max.print=200)
 
 这次我们学习可视化与处理数据来系统地探索数据——统计学家称之为**探索性数据分析**（exploratory data analysis），简称为EDA。
 
-<!-- more -->
+<!--more-->
 
 EDA是一个迭代的圆圈：
 
