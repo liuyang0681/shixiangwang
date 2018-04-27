@@ -6,7 +6,7 @@ active = true
 date = "2016-04-20T00:00:00"
 
 title = "Recent Posts"
-subtitle = "学习记录"
+subtitle = ""
 
 # Order that this section will appear in.
 weight = 40
@@ -19,6 +19,6 @@ tags_exclude = []
 
 # Number of posts to list.
 count = 5
-summary = "详情点击阅读更多..."
+
 +++
 
