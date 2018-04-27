@@ -1,0 +1,146 @@
+---
+title: 使用R进行生存分析
+author: 王诗翔
+date: "`r Sys.Date()`"
+slug: "r-survival"
+categories: 
+    - R
+    - bioconnector
+tags:
+    - dplyr
+    - TCGA
+    - survminer
+    - 生存分析
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(collapse = TRUE, dev = "png",highlight = T)
+#Sys.setlocale('LC_ALL','C') # Embed this directly in the Rmarkdown script that contains the Chinese character comment
+options(digits=3)
+options(max.print=200)
+```
+
+学习生存分析预先要求对R有所了解，基本能够操作R数据框和包的使用。要是懂`ggplot2`和`dplyr`就更好了。
+
+**资料**
+
+* [生存分析备查表](/files/r-survival-cheatsheet.pdf) - 会使用到的主要函数与包介绍
+* [背景介绍](/files/r-survival-handout.pdf) - 统计知识
+
+# 背景
+
+在纵向研究中，我们需要从一个时间点追踪样本或受试者（例如，进入研究，诊断，开始治疗），直到我们观察到一些结果事件（例如死亡，疾病发作，复发），但不会有意义的假设改变的速率是不变的。例如：手术后心脏手术后的死亡风险最高，术后恢复的患者死亡风险缓慢降低，随着患者年龄的增长，风险再次缓慢上升。或者，不同癌症的复发率随时间变化很大，并且取决于肿瘤遗传学，治疗和其他环境因素。
+
+## 定义
+
+生存分析可让我们分析事件发生的速率，而不会假设速率不变。一般而言，生存分析可以让我们对事件发生之前的时间进行建模[^deathvs]或比较不同组之间的事件时间，或者事件时间与定量变量之间的相关性。
+
+[^deathvs]: 在医学界，我们通常会从字面上思考生存分析 - 追踪直至死亡的时间。 但是，它比这更普遍-生存分析模拟事件发生之前的时间（任何事件）都可以。这可以是生物有机体的死亡。但也可能是机械系统发生硬件故障，恢复时间，失去工作后有人失业的时间，直到成熟的番茄被放牧的鹿吃掉的时间，直到有人在车间里睡着的时间， 生存分析还包括工程可靠性理论，经济学持续时间分析和社会学事件历史分析。
+
+**风险**是特定时间点`t`的瞬时事件发生（死亡）率。生存分析并不认为随着时间的推移危害是不变的。累积风险是直到时间`t`为止经历的总风险。**生存函数**是个体在时间`t`之前存在的概率（或者，不发生感兴趣事件的概率）。这是事件（例如，死亡）尚未发生的可能性。看起来像这样，其中$T$是死亡时间，$Pr(T> t)$是死亡时间大于某个时间$t$的概率。$S$是概率，所以$0\leq S(t)\leq 1$，因为生存期总是正值（$T \geq 0$）。
+
+$$ S(t) = Pr(T>t) $$
+
+**Kaplan-Meier曲线**描述了生存函数。这是一个阶梯函数，说明随着时间的推移累计生存概率。曲线在没有事件发生的时间段内是水平的，然后垂直下降，对应于每次发生事件时生存函数的变化。**截尾**是一种生存分析特有的缺失数据问题。 当我们在研究结束时跟踪样本/主题并且事件从未发生时会发生这种情况。这也可能是由于样本/受试者因死亡以外的原因而退出研究或其他一些失访导致的。样本数据发生截尾是因为你只知道这个人存活到失去跟踪为止，但你不知道任何关于之后他的生存状态[^censoring]。
+
+[^censoring]: 这描述了最常见的截尾类型 - 右截尾。当“开始”未知时，例如当初始诊断或暴露时间未知时，通常不会发生左侧截尾。
+
+**比例风险假设**：生存分析的主要目标是比较不同组别（例如白血病患者与正常对照组）的生存功能。如果两组人都死亡，那么两条生存曲线都将结束于0％，但是其中一组的平均存活时间可能比另一组长。生存分析通过比较观察期间不同时间的风险来做到这一点。生存分析并不假设危害是恒定的，但确实假定组间危害的比率随着时间的推移是恒定的。[^cumhaz]本文不包括处理非比例风险的方法或伴随时间到事件的协变量交互作用。
+
+[^cumhaz]: 而且，按照上述定义，假定两组之间的累积危险比率随着时间的推移保持不变。
+
+**比例风险回归**也称为**Cox回归**，是评估不同变量对生存率影响的最常用方法。
+
+### Cox PH模型
+
+Kaplan-Meier曲线适用于观察两个分类组[^logrank]之间生存率的差异，但对于评估诸如年龄，基因表达，白细胞计数等定量变量的影响，它们不起作用。Cox PH回归可评估分类变量和连续变量的影响，并且可以一次模拟多个变量的影响。
+
+[^logrank]: 对于这些差异，有一个类似卡方的统计检验，称为对数秩检验，比较生存函数分类组。
+
+Cox PH回归模型将时间`t`处的风险自然对数表示为$h(t)$，作为基线危险（$h_0(t)$）的函数（所有暴露变量为0的个体的风险）和多个暴露变量$x_1$，$x_1$，$...$，$x_p$。 Cox PH模型的形式是：
+
+$$ log(h(t)) = log(h_0(t)) + \beta_1 x_1 + \beta_2 x_2 + ... + \beta_p x_p $$
+
+如果对方程的两边进行幂运算，并将右边限制为仅包含两个组（$x_1 = 1$作为暴露变量，$x_1 = 0$作为非暴露变量）的单个分类暴露变量（$ x_1 $），则等式变为：
+
+$$ h_1(t) = h_0(t) \times e^{\beta_1 x_1} $$
+
+重新排列该等式可以估计风险比率，比较时间`t`暴露对于未暴露个体：
+
+$$ HR(t) = \frac{h_1(t)}{h_0(t)} = e^{\beta_1} $$
+
+该模型显示风险比为$e^{\beta_1}$，并且在时间t内保持不变（因此名称比例风险回归）。$\beta$值是根据模型估计的回归系数，并表示相应预测变量中每单位增加的$log(Hazard,Ratio)$。危害比的解释取决于预测变量的测量尺度，但简单地说，正系数表示较差的存活率，负系数表示所讨论的变量存活率较高。
+
+# 用R进行生存分析
+
+核心的分析函数都在`survival`包里，我们这里使用`dplyr`包，然后用`survminer`包进行绘图。
+
+```{r load_pkgs, message=FALSE}
+# 确保在导入前安装好
+library(survival)
+library(dplyr)
+library(survminer)
+```
+
+我们将使用的核心函数包括：
+
+* `Surv()`：创建一个生存对象
+* `survfit()`：使用公式或已构建的Cox模型拟合生存曲线
+* `coxph()`：拟合Cox比例风险回归模型
+
+其他我们可能会用到的函数：
+
+* `cox.zph()`：检验一个Cox回归模型的比例风险假设
+* `survdiff()`：用log-rank/Mantel-Haenszel检验检验生存差异[^survdiff]
+
+[^survdiff]: Cox回归和来自`survdiff`的`logrank`检验将在大多数时间给你类似的结果。对数秩检验是询问两组患者生存曲线是否显著不同。Cox回归是询问许多分类或连续变量中哪一个显著影响生存。
+
+`Surv()`创建响应变量，典型用法是使用事件时间，[^time2]以及事件是否发生（即死亡与截尾）。`survfit()`创建一条生存曲线，然后可以显示或绘图。`coxph()`实现回归分析，并且模型以与常规线性模型中相同的方式指定，但使用`coxph()`函数。
+
+[^time2]: `Surv()`也可以输入开始与截止时间，参见`?Surv`
+
+### 开始
+
+我们将使用内置的肺癌数据集[^lungcite]学习使用`survival`包。你可以通过运行`?lung`获取数据集信息：
+
+```{r, eval=FALSE}
+library(survival)
+?lung
+```
+
+1. `inst`: Institution code
+2. `time`: Survival time in days
+3. `status`: censoring status 1=censored, 2=dead
+4. `age`: Age in years
+5. `sex`: Male=1 Female=2
+6. `ph.ecog`: ECOG performance score (0=good 5=dead)
+7. `ph.karno`: Karnofsky performance score as rated by physician
+8. `pat.karno`: Karnofsky performance score as rated by patient
+9. `meal.cal`: Calories consumed at meals
+10. `wt.loss`: Weight loss in last six months
+
+[^lungcite]: Loprinzi et al. Prospective evaluation of prognostic variables from patient-completed questionnaires. North Central Cancer Treatment Group. *Journal of Clinical Oncology*. 12(3):601-7, 1994.
+
+```{r}
+lung <- as_tibble(lung)
+lung
+```
+
+### 生存曲线
+
+构建生存对象：
+
+```{r}
+s <- Surv(time = lung$time, event = lung$status)
+class(s)
+s
+```
+
+现在，让我们使用`survfit()`函数**拟合一条生存曲线**。这里让我们先创建一条不考虑任何比较的生存曲线，所以我们只需要指定`survfit()`在公式里期望的截距（比如`~1`。
+
+```{r}
+survfit(s~1)
+# 前面操作可以一步完成
+```
+

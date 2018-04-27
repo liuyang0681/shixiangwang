@@ -17,11 +17,11 @@ new_post <- function(post_name=NULL, type = c('post', 'poem'),
     type <- match.arg(type)
     if (type == "post"){
         template_name <- "post_template.Rmd"
-        post_path <- paste0(getwd(),"/content/post/2018/") # modify path for you categories
+        post_path <- paste0(getwd(),"/content/post/") # modify path for you categories
     }
     if (type == "poem"){
         template_name <- "poem_template.Rmd"
-        post_path <- paste0(getwd(),"/content/poem/")
+        post_path <- paste0(getwd(),"/content/post/")
     }
     
     

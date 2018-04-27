@@ -1,0 +1,148 @@
+---
+title: 使用R进行生存分析
+author: 王诗翔
+date: "2018-04-28"
+slug: "r-survival"
+categories: 
+    - R
+    - bioconnector
+tags:
+    - dplyr
+    - TCGA
+    - survminer
+    - 生存分析
+---
+
+
+
+<p>学习生存分析预先要求对R有所了解，基本能够操作R数据框和包的使用。要是懂<code>ggplot2</code>和<code>dplyr</code>就更好了。</p>
+<p><strong>资料</strong></p>
+<ul>
+<li><a href="/files/r-survival-cheatsheet.pdf">生存分析备查表</a> - 会使用到的主要函数与包介绍</li>
+<li><a href="/files/r-survival-handout.pdf">背景介绍</a> - 统计知识</li>
+</ul>
+<div class="section level1">
+<h1>背景</h1>
+<p>在纵向研究中，我们需要从一个时间点追踪样本或受试者（例如，进入研究，诊断，开始治疗），直到我们观察到一些结果事件（例如死亡，疾病发作，复发），但不会有意义的假设改变的速率是不变的。例如：手术后心脏手术后的死亡风险最高，术后恢复的患者死亡风险缓慢降低，随着患者年龄的增长，风险再次缓慢上升。或者，不同癌症的复发率随时间变化很大，并且取决于肿瘤遗传学，治疗和其他环境因素。</p>
+<div class="section level2">
+<h2>定义</h2>
+<p>生存分析可让我们分析事件发生的速率，而不会假设速率不变。一般而言，生存分析可以让我们对事件发生之前的时间进行建模<a href="#fn1" class="footnote-ref" id="fnref1"><sup>1</sup></a>或比较不同组之间的事件时间，或者事件时间与定量变量之间的相关性。</p>
+<p><strong>风险</strong>是特定时间点<code>t</code>的瞬时事件发生（死亡）率。生存分析并不认为随着时间的推移危害是不变的。累积风险是直到时间<code>t</code>为止经历的总风险。<strong>生存函数</strong>是个体在时间<code>t</code>之前存在的概率（或者，不发生感兴趣事件的概率）。这是事件（例如，死亡）尚未发生的可能性。看起来像这样，其中<span class="math inline">\(T\)</span>是死亡时间，<span class="math inline">\(Pr(T&gt; t)\)</span>是死亡时间大于某个时间<span class="math inline">\(t\)</span>的概率。<span class="math inline">\(S\)</span>是概率，所以<span class="math inline">\(0\leq S(t)\leq 1\)</span>，因为生存期总是正值（<span class="math inline">\(T \geq 0\)</span>）。</p>
+<p><span class="math display">\[ S(t) = Pr(T&gt;t) \]</span></p>
+<p><strong>Kaplan-Meier曲线</strong>描述了生存函数。这是一个阶梯函数，说明随着时间的推移累计生存概率。曲线在没有事件发生的时间段内是水平的，然后垂直下降，对应于每次发生事件时生存函数的变化。<strong>截尾</strong>是一种生存分析特有的缺失数据问题。 当我们在研究结束时跟踪样本/主题并且事件从未发生时会发生这种情况。这也可能是由于样本/受试者因死亡以外的原因而退出研究或其他一些失访导致的。样本数据发生截尾是因为你只知道这个人存活到失去跟踪为止，但你不知道任何关于之后他的生存状态<a href="#fn2" class="footnote-ref" id="fnref2"><sup>2</sup></a>。</p>
+<p><strong>比例风险假设</strong>：生存分析的主要目标是比较不同组别（例如白血病患者与正常对照组）的生存功能。如果两组人都死亡，那么两条生存曲线都将结束于0％，但是其中一组的平均存活时间可能比另一组长。生存分析通过比较观察期间不同时间的风险来做到这一点。生存分析并不假设危害是恒定的，但确实假定组间危害的比率随着时间的推移是恒定的。<a href="#fn3" class="footnote-ref" id="fnref3"><sup>3</sup></a>本文不包括处理非比例风险的方法或伴随时间到事件的协变量交互作用。</p>
+<p><strong>比例风险回归</strong>也称为<strong>Cox回归</strong>，是评估不同变量对生存率影响的最常用方法。</p>
+<div id="cox-ph" class="section level3">
+<h3>Cox PH模型</h3>
+<p>Kaplan-Meier曲线适用于观察两个分类组<a href="#fn4" class="footnote-ref" id="fnref4"><sup>4</sup></a>之间生存率的差异，但对于评估诸如年龄，基因表达，白细胞计数等定量变量的影响，它们不起作用。Cox PH回归可评估分类变量和连续变量的影响，并且可以一次模拟多个变量的影响。</p>
+<p>Cox PH回归模型将时间<code>t</code>处的风险自然对数表示为<span class="math inline">\(h(t)\)</span>，作为基线危险（<span class="math inline">\(h_0(t)\)</span>）的函数（所有暴露变量为0的个体的风险）和多个暴露变量<span class="math inline">\(x_1\)</span>，<span class="math inline">\(x_1\)</span>，<span class="math inline">\(...\)</span>，<span class="math inline">\(x_p\)</span>。 Cox PH模型的形式是：</p>
+<p><span class="math display">\[ log(h(t)) = log(h_0(t)) + \beta_1 x_1 + \beta_2 x_2 + ... + \beta_p x_p \]</span></p>
+<p>如果对方程的两边进行幂运算，并将右边限制为仅包含两个组（<span class="math inline">\(x_1 = 1\)</span>作为暴露变量，<span class="math inline">\(x_1 = 0\)</span>作为非暴露变量）的单个分类暴露变量（$ x_1 $），则等式变为：</p>
+<p><span class="math display">\[ h_1(t) = h_0(t) \times e^{\beta_1 x_1} \]</span></p>
+<p>重新排列该等式可以估计风险比率，比较时间<code>t</code>暴露对于未暴露个体：</p>
+<p><span class="math display">\[ HR(t) = \frac{h_1(t)}{h_0(t)} = e^{\beta_1} \]</span></p>
+<p>该模型显示风险比为<span class="math inline">\(e^{\beta_1}\)</span>，并且在时间t内保持不变（因此名称比例风险回归）。<span class="math inline">\(\beta\)</span>值是根据模型估计的回归系数，并表示相应预测变量中每单位增加的<span class="math inline">\(log(Hazard,Ratio)\)</span>。危害比的解释取决于预测变量的测量尺度，但简单地说，正系数表示较差的存活率，负系数表示所讨论的变量存活率较高。</p>
+</div>
+</div>
+</div>
+<div id="r" class="section level1">
+<h1>用R进行生存分析</h1>
+<p>核心的分析函数都在<code>survival</code>包里，我们这里使用<code>dplyr</code>包，然后用<code>survminer</code>包进行绘图。</p>
+<pre class="r"><code># 确保在导入前安装好
+library(survival)
+library(dplyr)
+library(survminer)</code></pre>
+<p>我们将使用的核心函数包括：</p>
+<ul>
+<li><code>Surv()</code>：创建一个生存对象</li>
+<li><code>survfit()</code>：使用公式或已构建的Cox模型拟合生存曲线</li>
+<li><code>coxph()</code>：拟合Cox比例风险回归模型</li>
+</ul>
+<p>其他我们可能会用到的函数：</p>
+<ul>
+<li><code>cox.zph()</code>：检验一个Cox回归模型的比例风险假设</li>
+<li><code>survdiff()</code>：用log-rank/Mantel-Haenszel检验检验生存差异<a href="#fn5" class="footnote-ref" id="fnref5"><sup>5</sup></a></li>
+</ul>
+<p><code>Surv()</code>创建响应变量，典型用法是使用事件时间，<a href="#fn6" class="footnote-ref" id="fnref6"><sup>6</sup></a>以及事件是否发生（即死亡与截尾）。<code>survfit()</code>创建一条生存曲线，然后可以显示或绘图。<code>coxph()</code>实现回归分析，并且模型以与常规线性模型中相同的方式指定，但使用<code>coxph()</code>函数。</p>
+<div class="section level3">
+<h3>开始</h3>
+<p>我们将使用内置的肺癌数据集<a href="#fn7" class="footnote-ref" id="fnref7"><sup>7</sup></a>学习使用<code>survival</code>包。你可以通过运行<code>?lung</code>获取数据集信息：</p>
+<pre class="r"><code>library(survival)
+?lung</code></pre>
+<ol style="list-style-type: decimal">
+<li><code>inst</code>: Institution code</li>
+<li><code>time</code>: Survival time in days</li>
+<li><code>status</code>: censoring status 1=censored, 2=dead</li>
+<li><code>age</code>: Age in years</li>
+<li><code>sex</code>: Male=1 Female=2</li>
+<li><code>ph.ecog</code>: ECOG performance score (0=good 5=dead)</li>
+<li><code>ph.karno</code>: Karnofsky performance score as rated by physician</li>
+<li><code>pat.karno</code>: Karnofsky performance score as rated by patient</li>
+<li><code>meal.cal</code>: Calories consumed at meals</li>
+<li><code>wt.loss</code>: Weight loss in last six months</li>
+</ol>
+<pre class="r"><code>lung &lt;- as_tibble(lung)
+lung
+## # A tibble: 228 x 10
+##     inst  time status   age   sex ph.ecog ph.karno pat.karno meal.cal
+##  * &lt;dbl&gt; &lt;dbl&gt;  &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt;   &lt;dbl&gt;    &lt;dbl&gt;     &lt;dbl&gt;    &lt;dbl&gt;
+##  1    3.  306.     2.   74.    1.      1.      90.      100.    1175.
+##  2    3.  455.     2.   68.    1.      0.      90.       90.    1225.
+##  3    3. 1010.     1.   56.    1.      0.      90.       90.      NA 
+##  4    5.  210.     2.   57.    1.      1.      90.       60.    1150.
+##  5    1.  883.     2.   60.    1.      0.     100.       90.      NA 
+##  6   12. 1022.     1.   74.    1.      1.      50.       80.     513.
+##  7    7.  310.     2.   68.    2.      2.      70.       60.     384.
+##  8   11.  361.     2.   71.    2.      2.      60.       80.     538.
+##  9    1.  218.     2.   53.    1.      1.      70.       80.     825.
+## 10    7.  166.     2.   61.    1.      2.      70.       70.     271.
+## # ... with 218 more rows, and 1 more variable: wt.loss &lt;dbl&gt;</code></pre>
+</div>
+<div class="section level3">
+<h3>生存曲线</h3>
+<p>构建生存对象：</p>
+<pre class="r"><code>s &lt;- Surv(time = lung$time, event = lung$status)
+class(s)
+## [1] &quot;Surv&quot;
+s
+##   [1]  306   455  1010+  210   883  1022+  310   361   218   166   170 
+##  [12]  654   728    71   567   144   613   707    61    88   301    81 
+##  [23]  624   371   394   520   574   118   390    12   473    26   533 
+##  [34]  107    53   122   814   965+   93   731   460   153   433   145 
+##  [45]  583    95   303   519   643   765   735   189    53   246   689 
+##  [56]   65     5   132   687   345   444   223   175    60   163    65 
+##  [67]  208   821+  428   230   840+  305    11   132   226   426   705 
+##  [78]  363    11   176   791    95   196+  167   806+  284   641   147 
+##  [89]  740+  163   655   239    88   245   588+   30   179   310   477 
+## [100]  166   559+  450   364   107   177   156   529+   11   429   351 
+## [111]   15   181   283   201   524    13   212   524   288   363   442 
+## [122]  199   550    54   558   207    92    60   551+  543+  293   202 
+## [133]  353   511+  267   511+  371   387   457   337   201   404+  222 
+## [144]   62   458+  356+  353   163    31   340   229   444+  315+  182 
+## [155]  156   329   364+  291   179   376+  384+  268   292+  142   413+
+## [166]  266+  194   320   181   285   301+  348   197   382+  303+  296+
+## [177]  180   186   145   269+  300+  284+  350   272+  292+  332+  285 
+## [188]  259+  110   286   270    81   131   225+  269   225+  243+  279+
+## [199]  276+  135 
+##  [ reached getOption(&quot;max.print&quot;) -- omitted 28 entries ]</code></pre>
+<p>现在，让我们使用<code>survfit()</code>函数<strong>拟合一条生存曲线</strong>。这里让我们先创建一条不考虑任何比较的生存曲线，所以我们只需要指定<code>survfit()</code>在公式里期望的截距（比如<code>~1</code>。</p>
+<pre class="r"><code>survfit(s~1)
+## Call: survfit(formula = s ~ 1)
+## 
+##       n  events  median 0.95LCL 0.95UCL 
+##     228     165     310     285     363
+# 前面操作可以一步完成</code></pre>
+</div>
+</div>
+<div class="footnotes">
+<hr />
+<ol>
+<li id="fn1"><p>在医学界，我们通常会从字面上思考生存分析 - 追踪直至死亡的时间。 但是，它比这更普遍-生存分析模拟事件发生之前的时间（任何事件）都可以。这可以是生物有机体的死亡。但也可能是机械系统发生硬件故障，恢复时间，失去工作后有人失业的时间，直到成熟的番茄被放牧的鹿吃掉的时间，直到有人在车间里睡着的时间， 生存分析还包括工程可靠性理论，经济学持续时间分析和社会学事件历史分析。<a href="#fnref1" class="footnote-back">↩</a></p></li>
+<li id="fn2"><p>这描述了最常见的截尾类型 - 右截尾。当“开始”未知时，例如当初始诊断或暴露时间未知时，通常不会发生左侧截尾。<a href="#fnref2" class="footnote-back">↩</a></p></li>
+<li id="fn3"><p>而且，按照上述定义，假定两组之间的累积危险比率随着时间的推移保持不变。<a href="#fnref3" class="footnote-back">↩</a></p></li>
+<li id="fn4"><p>对于这些差异，有一个类似卡方的统计检验，称为对数秩检验，比较生存函数分类组。<a href="#fnref4" class="footnote-back">↩</a></p></li>
+<li id="fn5"><p>Cox回归和来自<code>survdiff</code>的<code>logrank</code>检验将在大多数时间给你类似的结果。对数秩检验是询问两组患者生存曲线是否显著不同。Cox回归是询问许多分类或连续变量中哪一个显著影响生存。<a href="#fnref5" class="footnote-back">↩</a></p></li>
+<li id="fn6"><p><code>Surv()</code>也可以输入开始与截止时间，参见<code>?Surv</code><a href="#fnref6" class="footnote-back">↩</a></p></li>
+<li id="fn7"><p>Loprinzi et al. Prospective evaluation of prognostic variables from patient-completed questionnaires. North Central Cancer Treatment Group. <em>Journal of Clinical Oncology</em>. 12(3):601-7, 1994.<a href="#fnref7" class="footnote-back">↩</a></p></li>
+</ol>
+</div>
