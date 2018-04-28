@@ -314,7 +314,6 @@ fit
 ## 
 ## Likelihood ratio test=10.6  on 1 df, p=0.00111
 ## n= 228, number of events= 165</code></pre>
-<<<<<<< HEAD
 <p>结果中的<code>exp(coef)</code>列包含<span class="math inline">\(e^{\beta_1}\)</span>。它就是<strong>风险比率</strong>——该变量对风险率的乘数效应（对于该变量每个单位增加的）。因此，对于像性别这样的分类变量，从男性（基线）到女性的结果大约减少约40％的危险。你也可以翻转<code>coef</code>列上的符号，并采用<code>exp(0.531)</code>，你可以将其解释为男性导致危险增加1.7倍，或者单位时间男性的死亡率约为女性1.7倍（女性死亡率为男性的0.588倍）。</p>
 <p><strong>要记住</strong>：</p>
 <ul>
@@ -477,14 +476,11 @@ lung &lt;- lung %&gt;%
 # plot!
 ggsurvplot(survfit(Surv(time, status)~agecat, data=lung), pval=TRUE)</code></pre>
 <p><img src="/post/2018-04-27-r-survival-analysis_files/figure-html/unnamed-chunk-17-1.png" width="672" /></p>
-<p><strong>请记住，Cox回归分析整个分布范围内的连续变量，其中Kaplan-Meier图上的对数秩检验可能会根据您对连续变量进行分类而发生变化。他们以一种不同的方式回答类似的问题：回归模型提出的问题是“年龄对生存有什么影响？”，而对数秩检验和KM图则问：“那些不到70岁和70岁以上的人有差异吗？”</strong>。</p>
+<p><strong>请记住，Cox回归分析整个分布范围内的连续变量，其中Kaplan-Meier图上的对数秩检验可能会根据您对连续变量进行分类而发生变化</strong>。他们以一种不同的方式回答类似的问题：回归模型提出的问题是“年龄对生存有什么影响？”，而对数秩检验和KM图则问：“那些不到70岁和70岁以上的人有差异吗？”。</p>
 <p>在新的survminer 0.2.4版本中，新增了可以一次确定一个或多个连续变量最佳分割点的函数<code>surv_cutpoint()</code>与<code>surv_categorize()</code>。<strong>参阅<a href="http://www.sthda.com/english/wiki/survminer-0-2-4#determine-the-optimal-cutpoint-for-continuous-variables">这篇博文</a>学习详细的函数用法</strong>。</p>
 <hr />
 <p>英文来源：<a href="http://bioconnector.org/r-survival.html" class="uri">http://bioconnector.org/r-survival.html</a>。上面讲述的内容涵盖了R生存分析的基本各个方面，具体的使用、图形优化还需要读者自己琢磨。英文来源中有不少练习，有兴趣的不妨试试。后续还有一些TCGA的分析实例，有空我再写写。</p>
 <p>Welcome.</p>
-=======
-<p>结果中的<code>exp(coef)</code>列包含$e^{_1}。它就是<strong>风险比率</strong></p>
->>>>>>> parent of 9034e25... finish survival analysis usage
 </div>
 </div>
 <div class="footnotes">

@@ -217,7 +217,6 @@ fit <- coxph(Surv(time, status)~sex, data=lung)
 fit
 ```
 
-<<<<<<< HEAD
 结果中的`exp(coef)`列包含$e^{\beta_1}$。它就是**风险比率**——该变量对风险率的乘数效应（对于该变量每个单位增加的）。因此，对于像性别这样的分类变量，从男性（基线）到女性的结果大约减少约40％的危险。你也可以翻转`coef`列上的符号，并采用`exp(0.531)`，你可以将其解释为男性导致危险增加1.7倍，或者单位时间男性的死亡率约为女性1.7倍（女性死亡率为男性的0.588倍）。
 
 **要记住**：
@@ -298,7 +297,7 @@ lung <- lung %>%
 ggsurvplot(survfit(Surv(time, status)~agecat, data=lung), pval=TRUE)
 ```
 
-**请记住，Cox回归分析整个分布范围内的连续变量，其中Kaplan-Meier图上的对数秩检验可能会根据您对连续变量进行分类而发生变化。他们以一种不同的方式回答类似的问题：回归模型提出的问题是“年龄对生存有什么影响？”，而对数秩检验和KM图则问：“那些不到70岁和70岁以上的人有差异吗？”**。
+**请记住，Cox回归分析整个分布范围内的连续变量，其中Kaplan-Meier图上的对数秩检验可能会根据您对连续变量进行分类而发生变化**。他们以一种不同的方式回答类似的问题：回归模型提出的问题是“年龄对生存有什么影响？”，而对数秩检验和KM图则问：“那些不到70岁和70岁以上的人有差异吗？”。
 
 在新的survminer 0.2.4版本中，新增了可以一次确定一个或多个连续变量最佳分割点的函数`surv_cutpoint()`与`surv_categorize()`。**参阅[这篇博文](http://www.sthda.com/english/wiki/survminer-0-2-4#determine-the-optimal-cutpoint-for-continuous-variables)学习详细的函数用法**。
 
@@ -318,6 +317,3 @@ ggsurvplot(fit, pval=TRUE)
 
 Welcome.
 
-=======
-结果中的`exp(coef)`列包含$e^{\beta_1}。它就是**风险比率**
->>>>>>> parent of 9034e25... finish survival analysis usage
