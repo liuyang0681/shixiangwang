@@ -15,7 +15,7 @@ tags:
 
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(collapse = TRUE, dev = "png",highlight = T)
+knitr::opts_chunk$set(collapse = TRUE, dev = "png",highlight = T, warning = FALSE)
 #Sys.setlocale('LC_ALL','C') # Embed this directly in the Rmarkdown script that contains the Chinese character comment
 options(digits=3)
 options(max.print=200)
@@ -142,5 +142,59 @@ s
 ```{r}
 survfit(s~1)
 # 前面操作可以一步完成
+survfit(Surv(time, status)~1, data=lung)
 ```
+
+
+但模型对象本身不会给出太多的价值信息，我们需要使用`summary`函数查看模型汇总结果：
+
+```{r survfitSummary}
+sfit <- survfit(Surv(time, status)~1, data=lung)
+summary(sfit)
+```
+
+这个表格每一行显示了一个（多个）事件或截尾发生了，在风险中的样本数（就是还没死的），以及及时的累积生存率等。
+
+如果我们不使用截距建模，结果会更加有意思：
+
+```{r}
+sfit <- survfit(Surv(time, status)~sex, data=lung)
+sfit
+summary(sfit)
+```
+
+`summary()`函数中可以设定时间参数用来选定一个时间区间，我们可以以此比对男生是不是比女生有更高的风险：
+
+```{r}
+summary(sfit, times=seq(0, 1000, 100))
+```
+
+### Kaplan-Meier生存曲线
+
+现在我们使用**Kaplan-Meier曲线**来可视化这一结果：
+
+```{r}
+plot(sfit)
+```
+
+R的`plot()`函数选项可以用来修改这个图，你可以参加`?plot.survfit`。我们这里不会描述太多细节，因为有另一个叫**survminer**的包提供的一个叫**`ggsurvplot()`**的函数可以帮助我们更简单地做出可以发表的生存曲线，如果你对ggplot2语法很熟悉的话还能更简单地进行修改。让我们导入并尝试一下吧：
+
+```{r survminer}
+library(survminer)
+ggsurvplot(sfit)
+
+```
+
+这个图比刚才那个图更好看，信息量也更多：它用颜色帮我们区分了组别，并添加了横纵坐标的标签。
+
+让我们添加曲线的置信区间，并增加`long-rank`检验的结果p值：
+
+```{r survminerOptions, fig.height=8}
+ggsurvplot(sfit, conf.int=TRUE, pval=TRUE, risk.table=TRUE, 
+           legend.labs=c("Male", "Female"), legend.title="Sex",  
+           palette=c("dodgerblue2", "orchid2"), 
+           title="Kaplan-Meier Curve for Lung Cancer Survival", 
+           risk.table.height=.15)
+```
+
 
