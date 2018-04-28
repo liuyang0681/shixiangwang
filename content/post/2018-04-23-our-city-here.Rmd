@@ -1,7 +1,7 @@
 ---
 title: "我们这座城市"
 author: "王诗翔"
-date: "2018-04-23"
+date: "`r Sys.Date()`"
 slug: our-city-here
 categories:
   - 小诗
