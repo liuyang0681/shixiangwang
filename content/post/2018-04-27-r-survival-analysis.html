@@ -314,7 +314,172 @@ fit
 ## 
 ## Likelihood ratio test=10.6  on 1 df, p=0.00111
 ## n= 228, number of events= 165</code></pre>
-<p>结果中的<code>exp(coef)</code>列包含$e^{_1}。它就是<strong>风险比率</strong></p>
+<p>结果中的<code>exp(coef)</code>列包含<span class="math inline">\(e^{\beta_1}\)</span>。它就是<strong>风险比率</strong>——该变量对风险率的乘数效应（对于该变量每个单位增加的）。因此，对于像性别这样的分类变量，从男性（基线）到女性的结果大约减少约40％的危险。你也可以翻转<code>coef</code>列上的符号，并采用<code>exp(0.531)</code>，你可以将其解释为男性导致危险增加1.7倍，或者单位时间男性的死亡率约为女性1.7倍（女性死亡率为男性的0.588倍）。</p>
+<p><strong>要记住</strong>：</p>
+<ul>
+<li>HR=1: 没有效应</li>
+<li>HR&gt;1: 风险增加</li>
+<li>HR&lt;1: 风险减少 （保护变量）</li>
+</ul>
+<p>你还会注意到，“性别”有一个对应的<code>p</code>值，整个模型中也有一个<code>p</code>值。0.00111的p值非常接近我们在Kaplan-Meier图上看到的<code>p=0.00131</code>的p值。这是因为KM曲线显示的是对数秩检验的p值。你可以通过调用<code>summary(fit)</code>来获得Cox模型结果。你也可以使用<code>survdiff()</code>直接计算log-rank测试p值。</p>
+<pre class="r"><code>summary(fit)
+## Call:
+## coxph(formula = Surv(time, status) ~ sex, data = lung)
+## 
+##   n= 228, number of events= 165 
+## 
+##       coef exp(coef) se(coef)     z Pr(&gt;|z|)   
+## sex -0.531     0.588    0.167 -3.18   0.0015 **
+## ---
+## Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1
+## 
+##     exp(coef) exp(-coef) lower .95 upper .95
+## sex     0.588        1.7     0.424     0.816
+## 
+## Concordance= 0.579  (se = 0.022 )
+## Rsquare= 0.046   (max possible= 0.999 )
+## Likelihood ratio test= 10.6  on 1 df,   p=0.00111
+## Wald test            = 10.1  on 1 df,   p=0.00149
+## Score (logrank) test = 10.3  on 1 df,   p=0.00131
+survdiff(Surv(time, status)~sex, data=lung)
+## Call:
+## survdiff(formula = Surv(time, status) ~ sex, data = lung)
+## 
+##         N Observed Expected (O-E)^2/E (O-E)^2/V
+## sex=1 138      112     91.6      4.55      10.3
+## sex=2  90       53     73.4      5.68      10.3
+## 
+##  Chisq= 10.3  on 1 degrees of freedom, p= 0.00131</code></pre>
+<p>让我们创建另一个模型，分析数据集中的所有变量！这向我们展示了当所有变量一起考虑时，如何影响生存。一些是非常强大的预测指标（性别，ECOG评分）。有趣的是，医师对Karnofsky表现评分的评分稍高，但患者评分相同。</p>
+<pre class="r"><code>fit &lt;- coxph(Surv(time, status)~sex+age+ph.ecog+ph.karno+pat.karno+meal.cal+wt.loss, data=lung)
+fit
+## Call:
+## coxph(formula = Surv(time, status) ~ sex + age + ph.ecog + ph.karno + 
+##     pat.karno + meal.cal + wt.loss, data = lung)
+## 
+##                coef exp(coef)  se(coef)     z      p
+## sex       -5.51e-01  5.76e-01  2.01e-01 -2.74 0.0061
+## age        1.06e-02  1.01e+00  1.16e-02  0.92 0.3591
+## ph.ecog    7.34e-01  2.08e+00  2.23e-01  3.29 0.0010
+## ph.karno   2.25e-02  1.02e+00  1.12e-02  2.00 0.0457
+## pat.karno -1.24e-02  9.88e-01  8.05e-03 -1.54 0.1232
+## meal.cal   3.33e-05  1.00e+00  2.60e-04  0.13 0.8979
+## wt.loss   -1.43e-02  9.86e-01  7.77e-03 -1.84 0.0652
+## 
+## Likelihood ratio test=28.3  on 7 df, p=0.000192
+## n= 168, number of events= 121 
+##    (60 observations deleted due to missingness)</code></pre>
+</div>
+<div id="km" class="section level3">
+<h3>分类画KM曲线</h3>
+<p>让我们回到肺部数据并查看年龄的Cox模型。看起来年龄在模拟为连续变量时似乎有一点重要。</p>
+<pre class="r"><code>coxph(Surv(time, status)~age, data=lung)
+## Call:
+## coxph(formula = Surv(time, status) ~ age, data = lung)
+## 
+##       coef exp(coef) se(coef)    z     p
+## age 0.0187    1.0189   0.0092 2.03 0.042
+## 
+## Likelihood ratio test=4.24  on 1 df, p=0.0395
+## n= 228, number of events= 165</code></pre>
+<p>现在我们的的回归分析显示年龄有重要意义，让我们制作Kaplan-Meier图。但是，正如我们之前所看到的，我们不能这样做，因为我们会为每个独特的年龄值获得单独的曲线！</p>
+<pre class="r"><code>ggsurvplot(survfit(Surv(time, status)~age, data=lung))</code></pre>
+<p>你可能在这里看到的一件事是试图将一个连续变量分成不同的组 - 三分位数，上四分位数与下四分位数，中位数分数等 - 这样你就可以生成生存曲线图。但是，你如何进行分组是有意义的！检查<code>cut</code>的帮助。<code>cut()</code>接受一个连续变量和一些断点，并从中创建一个分类变量。 我们来得到数据集的平均年龄，并绘制一个显示年龄分布的直方图。</p>
+<pre class="r"><code>mean(lung$age)
+hist(lung$age)
+ggplot(lung, aes(age)) + geom_histogram(bins=20)</code></pre>
+<p>现在，让我们尝试通过<code>lung$age</code>创建一个分类变量，其中0,62（平均值）和正无穷大。我们可以在这里继续添加<code>labels =</code>选项来标记我们创建的分组，例如，“年轻”和“老”。最后，我们可以将这个结果分配给肺数据集中的一个新对象。</p>
+<pre class="r"><code>cut(lung$age, breaks=c(0, 62, Inf))
+##   [1] (62,Inf] (62,Inf] (0,62]   (0,62]   (0,62]   (62,Inf] (62,Inf]
+##   [8] (62,Inf] (0,62]   (0,62]   (0,62]   (62,Inf] (62,Inf] (0,62]  
+##  [15] (0,62]   (62,Inf] (62,Inf] (62,Inf] (0,62]   (0,62]   (62,Inf]
+##  [22] (0,62]   (0,62]   (0,62]   (62,Inf] (62,Inf] (0,62]   (62,Inf]
+##  [29] (0,62]   (62,Inf] (62,Inf] (62,Inf] (0,62]   (0,62]   (0,62]  
+##  [36] (0,62]   (62,Inf] (62,Inf] (62,Inf] (62,Inf] (62,Inf] (62,Inf]
+##  [43] (0,62]   (0,62]   (62,Inf] (62,Inf] (62,Inf] (62,Inf] (62,Inf]
+##  [50] (0,62]   (62,Inf] (62,Inf] (62,Inf] (0,62]   (0,62]   (0,62]  
+##  [57] (62,Inf] (0,62]   (0,62]   (62,Inf] (62,Inf] (0,62]   (62,Inf]
+##  [64] (62,Inf] (62,Inf] (62,Inf] (62,Inf] (62,Inf] (62,Inf] (62,Inf]
+##  [71] (62,Inf] (0,62]   (62,Inf] (0,62]   (0,62]   (62,Inf] (0,62]  
+##  [78] (0,62]   (62,Inf] (62,Inf] (0,62]   (0,62]   (0,62]   (0,62]  
+##  [85] (0,62]   (62,Inf] (0,62]   (0,62]   (0,62]   (62,Inf] (62,Inf]
+##  [92] (62,Inf] (62,Inf] (0,62]   (62,Inf] (62,Inf] (62,Inf] (62,Inf]
+##  [99] (62,Inf] (62,Inf] (0,62]   (62,Inf] (0,62]   (62,Inf] (0,62]  
+## [106] (62,Inf] (0,62]   (62,Inf] (0,62]   (62,Inf] (62,Inf] (0,62]  
+## [113] (62,Inf] (62,Inf] (0,62]   (62,Inf] (0,62]   (62,Inf] (62,Inf]
+## [120] (62,Inf] (62,Inf] (0,62]   (62,Inf] (62,Inf] (62,Inf] (62,Inf]
+## [127] (0,62]   (62,Inf] (62,Inf] (0,62]   (0,62]   (0,62]   (0,62]  
+## [134] (0,62]   (62,Inf] (62,Inf] (0,62]   (0,62]   (0,62]   (0,62]  
+## [141] (62,Inf] (62,Inf] (62,Inf] (62,Inf] (0,62]   (0,62]   (62,Inf]
+## [148] (0,62]   (62,Inf] (0,62]   (62,Inf] (0,62]   (0,62]   (0,62]  
+## [155] (0,62]   (62,Inf] (62,Inf] (0,62]   (62,Inf] (0,62]   (0,62]  
+## [162] (0,62]   (62,Inf] (62,Inf] (62,Inf] (0,62]   (0,62]   (0,62]  
+## [169] (0,62]   (62,Inf] (0,62]   (0,62]   (0,62]   (0,62]   (0,62]  
+## [176] (0,62]   (0,62]   (0,62]   (0,62]   (62,Inf] (0,62]   (0,62]  
+## [183] (62,Inf] (62,Inf] (0,62]   (0,62]   (62,Inf] (0,62]   (62,Inf]
+## [190] (0,62]   (62,Inf] (0,62]   (0,62]   (62,Inf] (62,Inf] (62,Inf]
+## [197] (62,Inf] (62,Inf] (0,62]   (0,62]  
+##  [ reached getOption(&quot;max.print&quot;) -- omitted 28 entries ]
+## Levels: (0,62] (62,Inf]
+cut(lung$age, breaks=c(0, 62, Inf), labels=c(&quot;young&quot;, &quot;old&quot;))
+##   [1] old   old   young young young old   old   old   young young young
+##  [12] old   old   young young old   old   old   young young old   young
+##  [23] young young old   old   young old   young old   old   old   young
+##  [34] young young young old   old   old   old   old   old   young young
+##  [45] old   old   old   old   old   young old   old   old   young young
+##  [56] young old   young young old   old   young old   old   old   old  
+##  [67] old   old   old   old   old   young old   young young old   young
+##  [78] young old   old   young young young young young old   young young
+##  [89] young old   old   old   old   young old   old   old   old   old  
+## [100] old   young old   young old   young old   young old   young old  
+## [111] old   young old   old   young old   young old   old   old   old  
+## [122] young old   old   old   old   young old   old   young young young
+## [133] young young old   old   young young young young old   old   old  
+## [144] old   young young old   young old   young old   young young young
+## [155] young old   old   young old   young young young old   old   old  
+## [166] young young young young old   young young young young young young
+## [177] young young young old   young young old   old   young young old  
+## [188] young old   young old   young young old   old   old   old   old  
+## [199] young young
+##  [ reached getOption(&quot;max.print&quot;) -- omitted 28 entries ]
+## Levels: young old
+
+# the base r way:
+lung$agecat &lt;- cut(lung$age, breaks=c(0, 62, Inf), labels=c(&quot;young&quot;, &quot;old&quot;))
+
+# or the dplyr way:
+lung &lt;- lung %&gt;% 
+  mutate(agecat=cut(age, breaks=c(0, 62, Inf), labels=c(&quot;young&quot;, &quot;old&quot;)))
+
+head(lung)
+## # A tibble: 6 x 11
+##    inst  time status   age   sex ph.ecog ph.karno pat.karno meal.cal
+##   &lt;dbl&gt; &lt;dbl&gt;  &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt;   &lt;dbl&gt;    &lt;dbl&gt;     &lt;dbl&gt;    &lt;dbl&gt;
+## 1    3.  306.     2.   74.    1.      1.      90.      100.    1175.
+## 2    3.  455.     2.   68.    1.      0.      90.       90.    1225.
+## 3    3. 1010.     1.   56.    1.      0.      90.       90.      NA 
+## 4    5.  210.     2.   57.    1.      1.      90.       60.    1150.
+## 5    1.  883.     2.   60.    1.      0.     100.       90.      NA 
+## 6   12. 1022.     1.   74.    1.      1.      50.       80.     513.
+## # ... with 2 more variables: wt.loss &lt;dbl&gt;, agecat &lt;fct&gt;</code></pre>
+<p>现在，当我们用这个新的分类生成KM图时会发生什么？ 看起来“老”和“年轻”患者之间的曲线存在一些差异，老年患者的生存几率稍差。但是<code>p=0.39</code>时，62岁以下和62岁以上者的生存率差异不显着。</p>
+<pre class="r"><code>ggsurvplot(survfit(Surv(time, status)~agecat, data=lung), pval=TRUE)</code></pre>
+<p><img src="/post/2018-04-27-r-survival-analysis_files/figure-html/unnamed-chunk-16-1.png" width="672" /></p>
+<p>但是，如果我们选择一个不同的切点，例如70岁，这大概是年龄分布上限的四分之一（见“分位数”）。结果现在非常重要！</p>
+<pre class="r"><code># the base r way:
+lung$agecat &lt;- cut(lung$age, breaks=c(0, 70, Inf), labels=c(&quot;young&quot;, &quot;old&quot;))
+
+# or the dplyr way:
+lung &lt;- lung %&gt;% 
+  mutate(agecat=cut(age, breaks=c(0, 70, Inf), labels=c(&quot;young&quot;, &quot;old&quot;)))
+
+# plot!
+ggsurvplot(survfit(Surv(time, status)~agecat, data=lung), pval=TRUE)</code></pre>
+<p><img src="/post/2018-04-27-r-survival-analysis_files/figure-html/unnamed-chunk-17-1.png" width="672" /></p>
+<p>**请记住，Cox回归分析整个分布范围内的连续变量，其中Kaplan-Meier图上的对数秩检验可能会根据您对连续变量进行分类而发生变化。他们以一种不同的方式回答类似的问题：回归模型提出的问题是“年龄对生存有什么影响？”，而对数秩检验和KM图则问：“那些不到70岁和70岁以上的人有差异吗？“。**</p>
+<p>在新的survminer 0.2.4版本中，新增了可以一次确定一个或多个连续变量最佳分割点的函数<code>surv_cutpoint()</code>与<code>surv_categorize()</code>。<strong>参阅<a href="http://www.sthda.com/english/wiki/survminer-0-2-4#determine-the-optimal-cutpoint-for-continuous-variables">这篇博文</a>学习详细的函数用法</strong>。</p>
+<hr />
+<p>英文来源：<a href="http://bioconnector.org/r-survival.html" class="uri">http://bioconnector.org/r-survival.html</a>。上面讲述的内容涵盖了R生存分析的基本各个方面，具体的使用、图形优化还需要读者自己琢磨。英文来源中有不少练习，有兴趣的不妨试试。后续还有一些TCGA的分析实例，有空我再写写。</p>
 </div>
 </div>
 <div class="footnotes">

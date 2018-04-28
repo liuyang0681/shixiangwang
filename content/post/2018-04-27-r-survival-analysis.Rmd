@@ -217,4 +217,102 @@ fit <- coxph(Surv(time, status)~sex, data=lung)
 fit
 ```
 
-结果中的`exp(coef)`列包含$e^{\beta_1}。它就是**风险比率**
+结果中的`exp(coef)`列包含$e^{\beta_1}$。它就是**风险比率**——该变量对风险率的乘数效应（对于该变量每个单位增加的）。因此，对于像性别这样的分类变量，从男性（基线）到女性的结果大约减少约40％的危险。你也可以翻转`coef`列上的符号，并采用`exp(0.531)`，你可以将其解释为男性导致危险增加1.7倍，或者单位时间男性的死亡率约为女性1.7倍（女性死亡率为男性的0.588倍）。
+
+**要记住**：
+
+- HR=1: 没有效应
+- HR>1: 风险增加
+- HR<1: 风险减少 （保护变量）
+
+你还会注意到，“性别”有一个对应的`p`值，整个模型中也有一个`p`值。0.00111的p值非常接近我们在Kaplan-Meier图上看到的`p=0.00131`的p值。这是因为KM曲线显示的是对数秩检验的p值。你可以通过调用`summary(fit)`来获得Cox模型结果。你也可以使用`survdiff()`直接计算log-rank测试p值。
+
+```{r}
+summary(fit)
+survdiff(Surv(time, status)~sex, data=lung)
+```
+
+让我们创建另一个模型，分析数据集中的所有变量！这向我们展示了当所有变量一起考虑时，如何影响生存。一些是非常强大的预测指标（性别，ECOG评分）。有趣的是，医师对Karnofsky表现评分的评分稍高，但患者评分相同。
+
+```{r}
+fit <- coxph(Surv(time, status)~sex+age+ph.ecog+ph.karno+pat.karno+meal.cal+wt.loss, data=lung)
+fit
+```
+
+### 分类画KM曲线
+
+让我们回到肺部数据并查看年龄的Cox模型。看起来年龄在模拟为连续变量时似乎有一点重要。
+
+```{r}
+coxph(Surv(time, status)~age, data=lung)
+```
+
+现在我们的的回归分析显示年龄有重要意义，让我们制作Kaplan-Meier图。但是，正如我们之前所看到的，我们不能这样做，因为我们会为每个独特的年龄值获得单独的曲线！
+
+```{r, eval=FALSE}
+ggsurvplot(survfit(Surv(time, status)~age, data=lung))
+```
+
+你可能在这里看到的一件事是试图将一个连续变量分成不同的组 - 三分位数，上四分位数与下四分位数，中位数分数等 - 这样你就可以生成生存曲线图。但是，你如何进行分组是有意义的！检查`cut`的帮助。`cut()`接受一个连续变量和一些断点，并从中创建一个分类变量。 我们来得到数据集的平均年龄，并绘制一个显示年龄分布的直方图。
+
+```{r, eval=FALSE}
+mean(lung$age)
+hist(lung$age)
+ggplot(lung, aes(age)) + geom_histogram(bins=20)
+```
+
+现在，让我们尝试通过`lung$age`创建一个分类变量，其中0,62（平均值）和正无穷大。我们可以在这里继续添加`labels =`选项来标记我们创建的分组，例如，“年轻”和“老”。最后，我们可以将这个结果分配给肺数据集中的一个新对象。
+
+```{r}
+cut(lung$age, breaks=c(0, 62, Inf))
+cut(lung$age, breaks=c(0, 62, Inf), labels=c("young", "old"))
+
+# the base r way:
+lung$agecat <- cut(lung$age, breaks=c(0, 62, Inf), labels=c("young", "old"))
+
+# or the dplyr way:
+lung <- lung %>% 
+  mutate(agecat=cut(age, breaks=c(0, 62, Inf), labels=c("young", "old")))
+
+head(lung)
+```
+
+现在，当我们用这个新的分类生成KM图时会发生什么？ 看起来“老”和“年轻”患者之间的曲线存在一些差异，老年患者的生存几率稍差。但是`p=0.39`时，62岁以下和62岁以上者的生存率差异不显着。
+
+```{r}
+ggsurvplot(survfit(Surv(time, status)~agecat, data=lung), pval=TRUE)
+```
+
+但是，如果我们选择一个不同的切点，例如70岁，这大概是年龄分布上限的四分之一（见“分位数”）。结果现在非常重要！
+
+```{r}
+# the base r way:
+lung$agecat <- cut(lung$age, breaks=c(0, 70, Inf), labels=c("young", "old"))
+
+# or the dplyr way:
+lung <- lung %>% 
+  mutate(agecat=cut(age, breaks=c(0, 70, Inf), labels=c("young", "old")))
+
+# plot!
+ggsurvplot(survfit(Surv(time, status)~agecat, data=lung), pval=TRUE)
+```
+
+**请记住，Cox回归分析整个分布范围内的连续变量，其中Kaplan-Meier图上的对数秩检验可能会根据您对连续变量进行分类而发生变化。他们以一种不同的方式回答类似的问题：回归模型提出的问题是“年龄对生存有什么影响？”，而对数秩检验和KM图则问：“那些不到70岁和70岁以上的人有差异吗？“。**
+
+在新的survminer 0.2.4版本中，新增了可以一次确定一个或多个连续变量最佳分割点的函数`surv_cutpoint()`与`surv_categorize()`。**参阅[这篇博文](http://www.sthda.com/english/wiki/survminer-0-2-4#determine-the-optimal-cutpoint-for-continuous-variables)学习详细的函数用法**。
+
+```{r determineOptimalCutpoints, include=FALSE, eval=FALSE}
+# see http://www.sthda.com/english/wiki/survminer-0-2-4
+cutpoint <- surv_cutpoint(lung, time="time", event="status", variables="age")
+cutpoint
+plot(cutpoint)
+surv_categorize(cutpoint)
+fit <- survfit(Surv(time, status)~age, surv_categorize(cutpoint))
+ggsurvplot(fit, pval=TRUE)
+```
+
+***
+
+英文来源：<http://bioconnector.org/r-survival.html>。上面讲述的内容涵盖了R生存分析的基本各个方面，具体的使用、图形优化还需要读者自己琢磨。英文来源中有不少练习，有兴趣的不妨试试。后续还有一些TCGA的分析实例，有空我再写写。
+
+
