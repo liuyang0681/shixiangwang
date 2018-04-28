@@ -288,13 +288,33 @@ summary(sfit)
 ggsurvplot(sfit)</code></pre>
 <p><img src="/post/2018-04-27-r-survival-analysis_files/figure-html/survminer-1.png" width="672" /></p>
 <p>这个图比刚才那个图更好看，信息量也更多：它用颜色帮我们区分了组别，并添加了横纵坐标的标签。</p>
-<p>让我们添加曲线的置信区间，并增加<code>long-rank</code>检验的结果p值：</p>
+<p>让我们添加曲线的置信区间，并增加<code>long-rank</code>检验的结果p值以及风险表格：</p>
 <pre class="r"><code>ggsurvplot(sfit, conf.int=TRUE, pval=TRUE, risk.table=TRUE, 
            legend.labs=c(&quot;Male&quot;, &quot;Female&quot;), legend.title=&quot;Sex&quot;,  
            palette=c(&quot;dodgerblue2&quot;, &quot;orchid2&quot;), 
            title=&quot;Kaplan-Meier Curve for Lung Cancer Survival&quot;, 
            risk.table.height=.15)</code></pre>
 <p><img src="/post/2018-04-27-r-survival-analysis_files/figure-html/survminerOptions-1.png" width="672" /></p>
+</div>
+<div id="cox" class="section level3">
+<h3>Cox回归模型</h3>
+<p>Kaplan-Meier曲线用来对两个分类变量差异的可视化非常合适，但分类要是多，那就糟透了：</p>
+<pre class="r"><code>ggsurvplot(survfit(Surv(time, status)~nodes, data=survival::colon))</code></pre>
+<p><img src="/post/2018-04-27-r-survival-analysis_files/figure-html/unnamed-chunk-8-1.png" width="672" /></p>
+<p>而且生存曲线另外不能可视化的是<strong>连续型变量</strong>的风险。</p>
+<p><strong>Cox PH回归模型</strong>正好是处理这类问题的一把好手，它同样内置于<code>survival</code>包中，语法与<code>lm()</code>和<code>glm()</code>一致。</p>
+<p>让我们再来用肺癌数据集看看不同性别的风险，这次使用Cox模型。</p>
+<pre class="r"><code>fit &lt;- coxph(Surv(time, status)~sex, data=lung)
+fit
+## Call:
+## coxph(formula = Surv(time, status) ~ sex, data = lung)
+## 
+##       coef exp(coef) se(coef)     z      p
+## sex -0.531     0.588    0.167 -3.18 0.0015
+## 
+## Likelihood ratio test=10.6  on 1 df, p=0.00111
+## n= 228, number of events= 165</code></pre>
+<p>结果中的<code>exp(coef)</code>列包含$e^{_1}。它就是<strong>风险比率</strong></p>
 </div>
 </div>
 <div class="footnotes">

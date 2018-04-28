@@ -187,7 +187,7 @@ ggsurvplot(sfit)
 
 这个图比刚才那个图更好看，信息量也更多：它用颜色帮我们区分了组别，并添加了横纵坐标的标签。
 
-让我们添加曲线的置信区间，并增加`long-rank`检验的结果p值：
+让我们添加曲线的置信区间，并增加`long-rank`检验的结果p值以及风险表格：
 
 ```{r survminerOptions, fig.height=8}
 ggsurvplot(sfit, conf.int=TRUE, pval=TRUE, risk.table=TRUE, 
@@ -198,3 +198,23 @@ ggsurvplot(sfit, conf.int=TRUE, pval=TRUE, risk.table=TRUE,
 ```
 
 
+### Cox回归模型
+
+Kaplan-Meier曲线用来对两个分类变量差异的可视化非常合适，但分类要是多，那就糟透了：
+
+```{r}
+ggsurvplot(survfit(Surv(time, status)~nodes, data=survival::colon))
+```
+
+而且生存曲线另外不能可视化的是**连续型变量**的风险。
+
+**Cox PH回归模型**正好是处理这类问题的一把好手，它同样内置于`survival`包中，语法与`lm()`和`glm()`一致。
+
+让我们再来用肺癌数据集看看不同性别的风险，这次使用Cox模型。
+
+```{r}
+fit <- coxph(Surv(time, status)~sex, data=lung)
+fit
+```
+
+结果中的`exp(coef)`列包含$e^{\beta_1}。它就是**风险比率**
