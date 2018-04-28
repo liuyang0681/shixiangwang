@@ -1,7 +1,7 @@
 ---
 title: 使用R进行生存分析
 author: 王诗翔
-date: "2018-04-28"
+date: "2018-04-29"
 slug: "r-survival"
 categories: 
     - R
@@ -125,7 +125,7 @@ s
 ## [188]  259+  110   286   270    81   131   225+  269   225+  243+  279+
 ## [199]  276+  135 
 ##  [ reached getOption(&quot;max.print&quot;) -- omitted 28 entries ]</code></pre>
-<p>现在，让我们使用<code>survfit()</code>函数<strong>拟合一条生存曲线</strong>。这里让我们先创建一条不考虑任何比较的生存曲线，所以我们只需要指定<code>survfit()</code>在公式里期望的截距（比如<code>~1</code>。</p>
+<p>现在，让我们使用<code>survfit()</code>函数<strong>拟合一条生存曲线</strong>。这里让我们先创建一条不考虑任何比较的生存曲线，所以我们只需要指定<code>survfit()</code>在公式里期望的截距（比如<code>~1</code>）。</p>
 <pre class="r"><code>survfit(s~1)
 ## Call: survfit(formula = s ~ 1)
 ## 
@@ -462,7 +462,7 @@ head(lung)
 ## 5    1.  883.     2.   60.    1.      0.     100.       90.      NA 
 ## 6   12. 1022.     1.   74.    1.      1.      50.       80.     513.
 ## # ... with 2 more variables: wt.loss &lt;dbl&gt;, agecat &lt;fct&gt;</code></pre>
-<p>现在，当我们用这个新的分类生成KM图时会发生什么？ 看起来“老”和“年轻”患者之间的曲线存在一些差异，老年患者的生存几率稍差。但是<code>p=0.39</code>时，62岁以下和62岁以上者的生存率差异不显着。</p>
+<p>现在，当我们用这个新的分类生成KM图时会发生什么？ 看起来“老”和“年轻”患者之间的曲线存在一些差异，老年患者的生存几率稍差。但是<code>p=0.39</code>时，62岁以下和62岁以上者的生存率差异不显著。</p>
 <pre class="r"><code>ggsurvplot(survfit(Surv(time, status)~agecat, data=lung), pval=TRUE)</code></pre>
 <p><img src="/post/2018-04-27-r-survival-analysis_files/figure-html/unnamed-chunk-16-1.png" width="672" /></p>
 <p>但是，如果我们选择一个不同的切点，例如70岁，这大概是年龄分布上限的四分之一（见“分位数”）。结果现在非常重要！</p>
@@ -476,7 +476,7 @@ lung &lt;- lung %&gt;%
 # plot!
 ggsurvplot(survfit(Surv(time, status)~agecat, data=lung), pval=TRUE)</code></pre>
 <p><img src="/post/2018-04-27-r-survival-analysis_files/figure-html/unnamed-chunk-17-1.png" width="672" /></p>
-<p>**请记住，Cox回归分析整个分布范围内的连续变量，其中Kaplan-Meier图上的对数秩检验可能会根据您对连续变量进行分类而发生变化。他们以一种不同的方式回答类似的问题：回归模型提出的问题是“年龄对生存有什么影响？”，而对数秩检验和KM图则问：“那些不到70岁和70岁以上的人有差异吗？“。**</p>
+<p><strong>请记住，Cox回归分析整个分布范围内的连续变量，其中Kaplan-Meier图上的对数秩检验可能会根据您对连续变量进行分类而发生变化。他们以一种不同的方式回答类似的问题：回归模型提出的问题是“年龄对生存有什么影响？”，而对数秩检验和KM图则问：“那些不到70岁和70岁以上的人有差异吗？”</strong>。</p>
 <p>在新的survminer 0.2.4版本中，新增了可以一次确定一个或多个连续变量最佳分割点的函数<code>surv_cutpoint()</code>与<code>surv_categorize()</code>。<strong>参阅<a href="http://www.sthda.com/english/wiki/survminer-0-2-4#determine-the-optimal-cutpoint-for-continuous-variables">这篇博文</a>学习详细的函数用法</strong>。</p>
 <hr />
 <p>英文来源：<a href="http://bioconnector.org/r-survival.html" class="uri">http://bioconnector.org/r-survival.html</a>。上面讲述的内容涵盖了R生存分析的基本各个方面，具体的使用、图形优化还需要读者自己琢磨。英文来源中有不少练习，有兴趣的不妨试试。后续还有一些TCGA的分析实例，有空我再写写。</p>
