@@ -1,7 +1,7 @@
 ---
 title: "用tidyverse进行EDA"
 author: 王诗翔
-date: "2018-04-28"
+date: "2018-05-06"
 slug: "r-eda"
 categories:
   - R
@@ -29,12 +29,12 @@ tags:
 <h2>准备</h2>
 <p>这部分我们将使用<strong>dplyr</strong>与<strong>ggplot2</strong>交互地对数据提问并回答，请确保在学习前安装好<code>tidyverse</code>包，可以顺利进行以下操作：</p>
 <pre class="r"><code>library(tidyverse)
-## -- Attaching packages ------------------------------------------------------------------ tidyverse 1.2.1 --
+## -- Attaching packages ------------- tidyverse 1.2.1 --
 ## &lt;U+221A&gt; ggplot2 2.2.1     &lt;U+221A&gt; purrr   0.2.4
 ## &lt;U+221A&gt; tibble  1.4.2     &lt;U+221A&gt; dplyr   0.7.4
 ## &lt;U+221A&gt; tidyr   0.8.0     &lt;U+221A&gt; stringr 1.3.0
 ## &lt;U+221A&gt; readr   1.1.1     &lt;U+221A&gt; forcats 0.3.0
-## -- Conflicts --------------------------------------------------------------------- tidyverse_conflicts() --
+## -- Conflicts ---------------- tidyverse_conflicts() --
 ## x dplyr::filter() masks stats::filter()
 ## x dplyr::lag()    masks stats::lag()</code></pre>
 <p>EDA的目标是理解数据，最容易实现的方式是用问题作为用具引导我们进行探索。想要提出<strong>有质量</strong>的问题首先必须提出<strong>大量</strong>问题。</p>
@@ -341,4 +341,69 @@ ggplot(diamonds) +
 <p><img src="/post/2018-04-24-R-EDA_files/figure-html/unnamed-chunk-27-1.png" width="672" /></p>
 <p>如果分类变量无序，则可能需要使用<strong>seriation包</strong>同时对行和列进行重新排序，以便更清楚地显示有趣的模式。 对于较大的地块，你可能需要尝试使用d3heatmap或heatmaply创建交互式地的图形。</p>
 </div>
+<div class="section level3">
+<h3>两个连续变量</h3>
+<p>你已经见过一种可以非常好可视化两个连续变量的方式——用<code>geom_point()</code>画一个散点图。你可以通过这些点来看变量共变化的模式。例如你可以看到钻石的大小与其价格有指数关系。</p>
+<pre class="r"><code>ggplot(data = diamonds) + 
+    geom_point(mapping = aes(x=carat, y=price))</code></pre>
+<p><img src="/post/2018-04-24-R-EDA_files/figure-html/unnamed-chunk-28-1.png" width="672" /></p>
+<p>当数据集越来越大时，散点图会变得越来越没有，因为点会覆盖纠缠到一块。一种优化的方式是使用<code>alpha</code>映射来添加透明度。</p>
+<pre class="r"><code>ggplot(data = diamonds) +
+    geom_point(mapping = aes(x=carat, y=price), alpha = 1 / 100)</code></pre>
+<p><img src="/post/2018-04-24-R-EDA_files/figure-html/unnamed-chunk-29-1.png" width="672" /></p>
+<p>但数据集如果太大效果也不好。另一个办法是使用<code>geom_bin2d()</code>和<code>geom_hex()</code>对二维数据分组。</p>
+<p>这两个函数可以从二维角度将某一块区域坐标的点划分为一块，使用颜色等映射进行填充可视化。<code>geom_bin2d()</code>创建矩形，而<code>geom_hex()</code>创建六边形。在使用<code>geom_hex()</code>之前需要先安装<code>hexbin</code>包。</p>
+<pre class="r"><code>ggplot(data = smaller) + 
+    geom_bin2d(mapping = aes(x = carat, y = price))</code></pre>
+<p><img src="/post/2018-04-24-R-EDA_files/figure-html/unnamed-chunk-30-1.png" width="672" /></p>
+<pre class="r"><code>
+#install.packages(&quot;hexbin&quot;)
+
+ggplot(data = smaller) + 
+    geom_hex(mapping = aes(x = carat, y = price))</code></pre>
+<p><img src="/post/2018-04-24-R-EDA_files/figure-html/unnamed-chunk-30-2.png" width="672" /></p>
+<p>还有一种处理两个连续变量的方式是将一个连续变量（进行分组）作为分类变量看待，然后使用我们前面提到的可视化<strong>一个分类变量与一个连续变量</strong>的方式。例如：</p>
+<pre class="r"><code>ggplot(data = smaller, mapping = aes(x=carat, y=price)) + 
+    geom_boxplot(mapping = aes(group = cut_width(carat, 0.1)))</code></pre>
+<p><img src="/post/2018-04-24-R-EDA_files/figure-html/unnamed-chunk-31-1.png" width="672" /></p>
+<p>上面使用的<code>cut_width(x, width)</code>将<code>x</code>根据宽度<code>width</code>划分了许多组别。默认不管有多少个观测值箱线图看起来都一样（除了离群点），所以很难说明每个箱子汇总了多少数据点。我们可以将箱子的（宽度）大小和汇总观测值的数目成比例，设置<code>varwidth=TRUE</code>即可。</p>
+<p>另外一种方式是尽量让每个箱子观察值都差不多，这可以通过<code>cut_number()</code>实现：</p>
+<pre class="r"><code>ggplot(data = smaller, mapping = aes(x=carat, y=price)) + 
+    geom_boxplot(mapping = aes(group = cut_width(carat, 0.1)), varwidth = TRUE)</code></pre>
+<p><img src="/post/2018-04-24-R-EDA_files/figure-html/unnamed-chunk-32-1.png" width="672" /></p>
+<pre class="r"><code>
+ggplot(data = smaller, mapping = aes(x = carat, y=price)) + geom_boxplot(mapping = aes(group = cut_number(carat, 20)))</code></pre>
+<p><img src="/post/2018-04-24-R-EDA_files/figure-html/unnamed-chunk-32-2.png" width="672" /></p>
+</div>
+</div>
+<div class="section level2">
+<h2>模式与模型</h2>
+<p>数据的<strong>模式</strong>提供了（变量）关系线索。如果两个变量存在系统性的关系，它必定会在数据中显示一定的模式。如果你想要找到一个模式，请这一问自己：</p>
+<ul>
+<li>这个模式的出现是偶然吗？</li>
+<li>你怎么描述这个模式显示的关系？</li>
+<li>这个模式显示的关系有多强？</li>
+<li>有其他变量可能会影响这个关系吗？</li>
+<li>如果你只单独看一小组的数据，这个关系会改变吗？</li>
+</ul>
+<p>老忠实喷泉等待时间与喷发显示了这样一个模式：等待时间越长喷发也就越长。散点图可以显示我们上面注意到的两个簇团：</p>
+<pre class="r"><code>ggplot(data = faithful) + 
+    geom_point(mapping = aes(x = eruptions, y= waiting))</code></pre>
+<p><img src="/post/2018-04-24-R-EDA_files/figure-html/unnamed-chunk-33-1.png" width="672" /></p>
+<p><strong>模型</strong>是从数据中抽取出模式的工具。下面代码拟合了一个钻石大小<code>carat</code>预测价格<code>price</code>并计算残差的模型。</p>
+<pre class="r"><code>library(modelr)
+
+mod &lt;- lm(log(price) ~ log(carat), data=diamonds)
+
+diamonds2 &lt;- diamonds %&gt;% 
+    add_residuals(mod) %&gt;% 
+    mutate(resid = exp(resid))
+
+ggplot(data = diamonds2) + 
+    geom_point(mapping = aes(x = carat, y = resid))</code></pre>
+<p><img src="/post/2018-04-24-R-EDA_files/figure-html/unnamed-chunk-34-1.png" width="672" /></p>
+<p>一旦你移除这种强相关关系，你会发现钻石质量越好价格越贵：</p>
+<pre class="r"><code>ggplot(data = diamonds2) + 
+  geom_boxplot(mapping = aes(x = cut, y = resid))</code></pre>
+<p><img src="/post/2018-04-24-R-EDA_files/figure-html/unnamed-chunk-35-1.png" width="672" /></p>
 </div>
