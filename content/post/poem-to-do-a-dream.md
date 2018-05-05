@@ -3,6 +3,7 @@ title: "去做梦"
 author: "王诗翔"
 date: '2018-03-21'
 slug: to-do-a-dream
+summary: "夜沸腾得厉害, 在黑暗里熬煮着..."
 categories:
   - 小诗
 tags:
@@ -10,7 +11,6 @@ tags:
 ---
 
 
-<!--more-->
 
 <center>
 夜沸腾得厉害
