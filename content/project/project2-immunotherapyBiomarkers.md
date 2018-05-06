@@ -4,7 +4,7 @@ title = "Immunotherapy Biomarker Discovery"
 summary = "Systematic study to identify biomarkers for cancer immunotherapy."
 external_link = ""
 image_preview = "projects/A3B.png"
-tags = ["Biomarker"]
+tags = ["biomarker"]
 +++
 
 Systematic study to identify biomarkers for cancer immunotherapy. 
