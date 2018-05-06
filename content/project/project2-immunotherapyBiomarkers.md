@@ -1,11 +1,10 @@
 +++
 date = "2018-05-01"
-description = "Systematic study to identify biomarkers for cancer immunotherapy."
-external_link = ""
-picture = "projects/A3B.png"
-short_description = ""
 title = "Immunotherapy Biomarker Discovery"
-participants_block_position = "down"
+summary = "Systematic study to identify biomarkers for cancer immunotherapy."
+external_link = ""
+image_preview = "projects/A3B.png"
+tags = ["Biomarker"]
 +++
 
 Systematic study to identify biomarkers for cancer immunotherapy. 
