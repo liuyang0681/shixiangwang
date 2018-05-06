@@ -9,6 +9,8 @@ categories:
 tags:
   - notebook
   - dplyr
+
+summary: "介绍如何使用dplyr包进行数据处理与转换"
 ---
 
 ```{r setup, include=FALSE}

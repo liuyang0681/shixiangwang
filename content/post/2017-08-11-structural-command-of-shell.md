@@ -8,6 +8,7 @@ tags:
 - linux
 - shell笔记
 
+summary: "学习shell结构化命令..."
 ---
 
 <!-- more -->

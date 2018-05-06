@@ -7,6 +7,8 @@ categories:
 tags:
 - linux
 - shell笔记
+
+summary: "学习Shell脚本的基本构建方式..."
 ---
 
 <!-- more -->

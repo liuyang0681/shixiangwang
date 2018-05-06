@@ -8,6 +8,7 @@ tags:
 - linux
 - shell笔记
 
+summary: "如何控制脚本并实现自动化？..."
 ---
 
 

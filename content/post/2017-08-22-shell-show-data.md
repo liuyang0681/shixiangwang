@@ -7,6 +7,8 @@ categories:
 tags:
 - linux
 - shell笔记
+
+summary: "怎么通过脚本呈现数据...包括重定向与日志文件等。"
 ---
 
 

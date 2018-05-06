@@ -7,6 +7,8 @@ categories:
 tags:
 - linux
 - shell笔记
+
+summary: "讲解Shell该如何创建函数..."
 ---
 
 *来源： Linux命令行与shell脚本编程大全*

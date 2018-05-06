@@ -11,6 +11,7 @@ tags:
     - TCGA
     - survminer
     - 生存分析
+summary: "使用r进行生存分析一文讲透..."
 ---
 
 

@@ -8,6 +8,8 @@ categories:
 tags:
 - linux
 - shell笔记
+
+summary: "简单介绍sed与awk命令..."
 ---
 
 

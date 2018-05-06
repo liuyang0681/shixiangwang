@@ -8,6 +8,7 @@ tags:
 - linux
 - shell笔记
 
+summary: "学习如何处理shell的用户输入..."
 ---
 
 

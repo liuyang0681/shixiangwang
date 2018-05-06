@@ -1,7 +1,7 @@
 ---
 title: "技术与艺术结合|生成rmd文章模板"
 author: 王诗翔
-date: "`r Sys.Date()`"
+date: 2018-03-22
 slug: "combine-tech-with-art"
 categories: 
     - R
@@ -10,6 +10,7 @@ tags:
     - post
     - 博客
     - RStudio
+summary: "怎么自动生成博客文章模板？"
 ---
 
 

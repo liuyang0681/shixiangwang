@@ -1,12 +1,14 @@
 ---
 title: "以诗之名|《门前》节选"
 author: "顾城"
-date: "`r Sys.Date()`"
+date: 2018-03-23
 slug: men-qian
 categories:
   - 小诗
 tags:
   - 诗
+
+summary: "我多么希望，有一个门口;早晨，阳光照在草上;我们站着;扶着自己的门窗;门很低，但太阳是明亮的"
 ---
 
 <center>
