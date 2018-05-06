@@ -6,7 +6,7 @@ image = ""
 image_preview = ""
 math = false
 publication = "Oncogene. 2018 Apr 26. doi: 10.1038/s41388-018-0245-9"
-publication_short = ""
+publication_short = "*Oncogene*"
 selected = true
 title = "APOBEC3B and APOBEC mutational signature as potential predictive markers for immunotherapy response in non-small cell lung cancer"
 publication_types = ["2"]
@@ -16,15 +16,8 @@ url_pdf = "https://www.nature.com/articles/s41388-018-0245-9.pdf"
 url_project = "/project/project2-immunotherapyBiomarkers"
 url_slides = ""
 url_video = ""
+authors = ["Shixiang Wang", "Mingming Jia", "Zaoke He", "Xue-Song Liu"]
 
-[[authors]]
-    name = "Shixiang Wang"
-[[authors]]
-    name = "Mingming Jia"
-[[authors]]
-    name = "Zaoke He"
-[[authors]]
-    name = "Xue-Song Liu"
 +++
 
 
