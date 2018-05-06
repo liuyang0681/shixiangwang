@@ -1,0 +1,306 @@
+---
+title: "data.table包操作"
+author: 王诗翔
+date: 2018-05-06
+slug: "r-data-table-checksheet"
+categories: 
+    - R
+tags:
+    - data.table
+    - 高性能计算
+    
+showonlyimage: false
+image: 
+description: 
+
+summary: "学习高性能包data.table的使用"
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(collapse = TRUE, dev = "png")
+#Sys.setlocale('LC_ALL','C') # Embed this directly in the Rmarkdown script that contains the Chinese character comment
+options(digits=3)
+options(max.print=200)
+```
+
+`data.table`包提供了一个加强版的`data.frame`。它运行效率极高，而且能够处理适合内存的大数据集。它通过`[ ]`实现了一种自然的数据操作语法。
+
+语法格式：
+
+```
+DT[i, j, by]
+```
+
+释义为**对data.table对象DT，使用i选择行，然后按照by计算j**。
+
+如果你还没有安装该包，运行：
+
+```{r install_data_table, eval=FALSE}
+install.packages("data.table")
+
+```
+
+导入包
+
+```{r}
+library(data.table)
+```
+
+## 创建一个data.table
+
+```{r}
+set.seed(45L)
+DT <- data.table(V1 = c(1L, 2L),
+                 V2 = LETTERS[1:3],
+                 V3 = round(rnorm(4), 4),
+                 V4 = 1:12)
+```
+
+
+## 使用索引i取子集
+
+```{r subset, warning=FALSE}
+# 选择第3到5行
+DT[3:5, ]
+# 选择第3到5行
+DT[3:5]
+# 选择第二列V2有值为A的列
+DT[V2=="A"]
+# 选择第二列有A或C的列
+DT[V2 %in% c("A", "C")]
+
+```
+
+## 对j列进行操作
+
+```{r, warning=FALSE}
+# 返回第二列为一个向量
+DT[, V2]
+# 返回第二列与第三列为一个data.table
+DT[, .(V2, V3)]
+# 返回V1列所有元素和为一个向量
+DT[, sum(V1)]
+# 返回V1列的和，V3列的标准差为一个data.table
+DT[, .(sum(V1), sd(V3))]
+# 跟上面一样，但生成新的列名
+DT[, .(Aggregate=sum(V1), Sd.V3=sd(V3))]
+# 选择V2列和计算V3列的标准差
+DT[, .(V1, Sd.V3=sd(V3))]
+# 对V2列打印，对V3列绘图
+DT[, .(print(V2), plot(V3), NULL)]
+```
+
+## 按组对列进行计算操作
+
+```{r, warning=FALSE}
+# 对V1的每一组计算V4的和
+DT[, .(V4.sum=sum(V4)), by=V1]
+# 对V1和V2的每组计算V4的和
+DT[, .(V4.sum=sum(V4)), by=.(V1,V2)]
+# 对sign(V1-1)的每组计算V4的和
+DT[, .(V4.sum=sum(V4)), by=sign(V1-1)]
+# 跟上面一样，但给分组变量取一个新的名字
+DT[, .(V4.sum=sum(V4)), by=.(V1.01=sign(V1-1))]
+# 先取前5行，然后对V1的每组求V4的和
+DT[1:5, .(V4.sum=sum(V4)), by=V1]
+# 对V1的每组计算行数
+DT[, .N, by=V1]
+
+```
+
+## 使用:=根据参考索引j添加和更新列
+
+```{r, warning=FALSE}
+# 根据计算结果更新V1列
+DT[, V1:=round(exp(V1), 2)]
+DT
+
+# 更新两列，使用[]可以将结果输出到屏幕
+DT[, c("V1", "V2"):=list(round(exp(V1), 2),
+                         LETTERS[4:6])]
+DT[, ':='(V1=round(exp(V1),2),
+          V2=LETTERS[4:6])][]
+# 移除V1列
+DT[, V1:=NULL]
+# 移除V1列和V2列
+DT[, c("V1", "V2"):=NULL]
+
+# 删除有列名Cols.chosen的列
+Clos.chosen = c("A", "B")
+DT[, Clos.chosen:=NULL][]
+
+# 删除列名指定在Cols.chosen中的列
+DT[, (Clos.chosen):=NULL][]
+```
+
+## 索引和键
+
+
+```{r, include=FALSE}
+set.seed(45L)
+DT <- data.table(V1 = c(1L, 2L),
+                 V2 = LETTERS[1:3],
+                 V3 = round(rnorm(4), 4),
+                 V4 = 1:12)
+```
+
+```{r}
+# 对V2列设定一个键，输出返回不可视
+# 返回满足键列（V2）值为A的所有行
+setkey(DT, V2)
+DT["A"]
+# V2列为A或C的所有行
+DT[c("A", "C")]
+# V2列为A的第一个匹配行
+DT["A", mult="first"]
+# 最后一个匹配行
+DT["A", mult="last"]
+
+# 返回所有V2列有A或D值的行
+DT[c("A", "D")]
+# 注意与上面的不同
+DT[c("A", "D"), nomatch=0]
+# 返回键列V2有A或C值行V4列的和
+DT[c("A", "C"), sum(V4)]
+# 对A,C分别求和
+DT[c("A", "C"), sum(V4), by=.EACHI]
+# 设定键，先按V1排序然后按V2排序
+setkey(DT, V1, V2)
+# 返回V1满足2，V2满足C的行
+DT[, .(2, "C")]
+# 返回V1满足2，V2满足A,C的行
+DT[, .(2, c("A", "C"))]
+```
+
+## 高级data.table操作
+
+```{r, include=FALSE}
+set.seed(45L)
+DT <- data.table(V1 = c(1L, 2L),
+                 V2 = LETTERS[1:3],
+                 V3 = round(rnorm(4), 4),
+                 V4 = 1:12)
+```
+
+```{r}
+# 返回倒数第二行
+DT[.N-1]
+# 返回行数
+DT[, .N]
+# 返回V2,V3为一个data.table
+DT[, .(V2, V3)]
+# 同上, list等价于.
+DT[, list(V2, V3)]
+# 按V1,V2分组，返回V3的均值
+DT[, mean(V3), by=.(V1,V2)]
+```
+
+## .SD 与 .SDcols
+
+```{r, include=FALSE}
+set.seed(45L)
+DT <- data.table(V1 = c(1L, 2L),
+                 V2 = LETTERS[1:3],
+                 V3 = round(rnorm(4), 4),
+                 V4 = 1:12)
+```
+
+```{r, warning=FALSE}
+# 看.SD包含什么
+DT[, print(.SD), by=V2]
+# 选择第一行与最后一行
+DT[, .SD[c(1, .N)], by=V2]
+# 按V2计算.SD中所有列的和
+DT[, lapply(.SD, sum), by=V2]
+# 按V2计算.SD中V3,V4列的和
+DT[, lapply(.SD, sum), by=V2, .SDcols=c("V3", "V4")]
+```
+
+## 链
+
+```{r, warning=FALSE}
+# 按V1分组求V4列的和
+DT2 <- DT[, .(V4.sum=sum(V4)), by=V1]
+# 选择和>40的行
+DT2[V4.sum>40]
+# 按V1分组，V1排序计算V4和
+DT[, .(V4.sum=sum(V4)), by=V1][order(-V1)]
+```
+
+## set家族
+
+### set()
+
+语法：
+
+```
+for (i in from:to) set(DT, row, column, new_value)
+```
+
+```{r, include=FALSE}
+set.seed(45L)
+DT <- data.table(V1 = c(1L, 2L),
+                 V2 = LETTERS[1:3],
+                 V3 = round(rnorm(4), 4),
+                 V4 = 1:12)
+```
+
+```{r, warning=FALSE}
+rows <- list(3:4, 5:6)
+cols <- 1:2
+for (i in seq_along(rows)) {
+    set(DT,
+        i=rows[[i]],
+        j=cols[[i]],
+        value=NA)
+}
+
+```
+
+### setnames()
+
+语法：
+
+```
+setnames(DT, "old", "new")
+```
+
+```{r, include=FALSE}
+set.seed(45L)
+DT <- data.table(V1 = c(1L, 2L),
+                 V2 = LETTERS[1:3],
+                 V3 = round(rnorm(4), 4),
+                 V4 = 1:12)
+```
+
+```{r, eval=FALSE}
+setnames(DT, "V2", "Rating")
+setnames(DT, c("V2","V3"),
+         c("V2.rating", "V3.DC"))
+```
+
+
+### setnames()
+
+列排序
+
+语法：
+
+```
+setcolorder(DT, "neworder")
+```
+
+
+```{r, include=FALSE}
+set.seed(45L)
+DT <- data.table(V1 = c(1L, 2L),
+                 V2 = LETTERS[1:3],
+                 V3 = round(rnorm(4), 4),
+                 V4 = 1:12)
+```
+
+```{r}
+setcolorder(DT, c("V2", "V1", "V4", "V3"))
+```
+
