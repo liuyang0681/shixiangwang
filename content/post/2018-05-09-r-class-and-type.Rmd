@@ -74,7 +74,7 @@ typeof(x)
 str(x)
 ```
 
-**可以看到，`typeof()`返回对象的低级内部类型，`class()`返回对象的高级类。`data.frame本质上就是具有等长成分的list**。
+**可以看到，`typeof()`返回对象的低级内部类型，`class()`返回对象的高级类。`data.frame`本质上就是具有等长成分的list**。
 
 
 ***
