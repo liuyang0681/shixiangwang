@@ -9,9 +9,6 @@ tags:
     - heart
     
 showonlyimage: false
-image: 
-description: 
-
 summary: "爱你喔~"
 ---
 
