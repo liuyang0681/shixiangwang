@@ -1,0 +1,126 @@
+---
+title: "初学者学习tidyverse"
+author: 王诗翔
+date: 2018-05-30
+slug: "tidyverse-beginner"
+categories: 
+    - R
+tags:
+    - dplyr
+    - tidyverse
+    - ggplot
+    
+showonlyimage: false
+image: 
+description: 
+
+summary: "简介tidyverse"
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(collapse = TRUE, dev = "png")
+#Sys.setlocale('LC_ALL','C') # Embed this directly in the Rmarkdown script that contains the Chinese character comment
+options(digits=3)
+options(max.print=200)
+```
+
+`tidyverse`是一组处理与可视化R包的集合，其中`ggplot2`与`dplyr`最广为人知。
+
+核心包有以下一些：
+
+* ggplot2 - 可视化数据
+* dplyr - 数据操作语法，可以用它解决大部分数据处理问题
+* tidyr - 清理数据
+* readr - 读入表格数据
+* purrr - 提供一个完整一致的工具集增强R的函数编程
+* tibble - 新一代数据框
+* stringr - 提供函数集用来处理字符数据
+* forcats - 提供有用工具用来处理因子问题
+
+有几个包没接触过，R包太多了，这些强力包还是有必要接触和学习下使用，碰到问题事半功倍。
+
+安装`tidyverse`：
+
+```{r, eval=FALSE}
+install.packages("tidyverse")
+```
+
+导入：
+
+```{r}
+library(tidyverse)
+```
+
+
+## 有用的函数
+
+```{r, eval=FALSE}
+# tidyverse与其他包的冲突
+tidyverse_conflicts()
+# 列出所有tidyverse的依赖包
+tidyverse_deps()
+#获取tidyverse的logo
+tidyverse_logo()
+# 列出所有tidyverse包
+tidyverse_packages()
+# 更新tidyverse包
+tidyverse_update()
+```
+
+## 载入数据
+
+```{r}
+library(datasets)
+#install.packages("gapminder")
+library(gapminder)
+attach(iris)
+```
+
+
+## dplyr
+
+### 过滤
+
+`filter()`函数可以用来取数据子集。
+
+```{r}
+iris %>% 
+    filter(Species == "virginica") # 指定满足的行
+iris %>% 
+    filter(Species == "virginica", Sepal.Length > 6) # 多个条件用,分隔
+```
+
+## 排序
+
+`arrange()`函数用来对观察值排序，默认是升序。
+
+```{r}
+iris %>% 
+    arrange(Sepal.Length)
+
+iris %>% 
+    arrange(desc(Sepal.Length)) # 降序
+```
+
+## 新增变量
+
+`mutate()`可以更新或者新增数据框一列。
+
+```{r}
+iris %>% 
+    mutate(Sepal.Length = Sepal.Length * 10) # 将该列数值变成以mm为单位
+iris %>% 
+    mutate(SLMn = Sepal.Length * 10) # 创建新的一列
+```
+
+整合函数流：
+
+```{r}
+iris %>% 
+    filter(Species == "Virginica") %>% 
+    mutate(SLMm = Sepal.Length) %>% 
+    arrange(desc(SLMm))
+```
+
+
