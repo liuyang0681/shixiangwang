@@ -123,4 +123,126 @@ iris %>%
     arrange(desc(SLMm))
 ```
 
+## 汇总
 
+`summarize()`函数可以让我们将很多变量汇总为单个的数据点。
+
+```{r}
+iris %>% 
+    summarize(medianSL = median(Sepal.Length))
+iris %>% 
+    filter(Species == "virginica") %>% 
+    summarize(medianSL=median(Sepal.Length))
+```
+
+还可以一次性汇总多个变量
+
+```{r}
+iris %>% 
+    filter(Species == "virginica") %>% 
+    summarize(medianSL = median(Sepal.Length),
+              maxSL = max(Sepal.Length))
+```
+
+`group_by()`可以让我们安装指定的组别进行汇总数据，而不是针对整个数据框
+
+```{r}
+iris %>% 
+    group_by(Species) %>% 
+    summarize(medianSL = median(Sepal.Length),
+              maxSL = max(Sepal.Length))
+
+iris %>% 
+    filter(Sepal.Length>6) %>% 
+    group_by(Species) %>% 
+    summarize(medianPL = median(Petal.Length), 
+              maxPL = max(Petal.Length))
+```
+
+## ggplot2
+
+### 散点图
+
+散点图可以帮助我们理解两个变量的数据关系，使用`geom_point()`可以绘制散点图：
+
+```{r}
+iris_small <- iris %>% 
+    filter(Sepal.Length > 5)
+
+ggplot(iris_small, aes(x = Petal.Length,
+                       y = Petal.Width)) + 
+    geom_point()
+```
+
+**额外的美学映射**
+
+* 颜色
+
+```{r}
+ggplot(iris_small, aes(x = Petal.Length,
+                       y = Petal.Width,
+                       color = Species)) + 
+    geom_point()
+```
+
+
+* 大小
+
+```{r}
+ggplot(iris_small, aes(x = Petal.Length,
+                       y = Petal.Width,
+                       color = Species,
+                       size = Sepal.Length)) + 
+    geom_point()
+```
+
+* 分面
+
+```{r}
+ggplot(iris_small, aes(x = Petal.Length,
+                       y = Petal.Width)) + 
+    geom_point() + 
+    facet_wrap(~Species)
+```
+
+### 线图
+
+```{r}
+by_year <- gapminder %>% 
+    group_by(year) %>% 
+    summarize(medianGdpPerCap = median(gdpPercap))
+
+ggplot(by_year, aes(x = year,
+                    y = medianGdpPerCap)) +
+    geom_line() + 
+    expand_limits(y=0)
+```
+
+
+### 条形图
+
+```{r}
+by_species <- iris %>%  
+    filter(Sepal.Length > 6) %>% 
+    group_by(Species) %>% 
+    summarize(medianPL=median(Petal.Length))
+
+ggplot(by_species, aes(x = Species, y=medianPL)) + 
+    geom_col()
+```
+
+### 直方图
+
+```{r}
+ggplot(iris_small, aes(x = Petal.Length)) + 
+    geom_histogram()
+```
+
+### 箱线图
+
+```{r}
+ggplot(iris_small, aes(x=Species, y=Sepal.Length)) + 
+    geom_boxplot()
+```
+
+> 资料来源：DataCamp
