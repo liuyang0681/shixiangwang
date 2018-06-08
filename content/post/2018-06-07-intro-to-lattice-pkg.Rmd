@@ -311,8 +311,125 @@ densityplot(~mpg, data=mtcars,
             key=key.trans)
 ```
 
+让我们使用R自带的CO2数据集讨论一下在单个图中包含分组和调节变量的例子。
+
+这个数据集描述了12种植物在7种二氧化碳浓度下的二氧化碳吸收率。6种植物来自魁北克，6种来自密西西比。每个产地有3种植物在冷藏条件下研究，3种在非冷藏条件下研究。在该例子中，`plant`是分组变量，`Type`和`Treatment`是调节变量。
+
+
+
+```{r}
+library(lattice)
+colors <- "darkgreen"
+symbols <- c(1:12)
+linetypes <- c(1:3)
+
+key.species <- list(title="Plant",
+                    space = "right",
+                    text = list(levels(CO2$Plant)),
+                    points = list(pch=symbols, col=colors))
+
+xyplot(uptake~conc|Type*Treatment, data=CO2,
+       group=Plant,
+       type="o",
+       pch=symbols, col=colors, lty=linetypes,
+       main = "Carbon Dioxide Uptake\nin Grass Plants",
+       ylab = "Uptake",
+       xlab = "Concentration",
+       sub = "Grass Species: Echinochloa crus-galli",
+       key = key.species)
+```
+
+
 ## 图形参数
 
 lattice图形不受`par()`函数的影响，它使用的默认设置在一个大的列表对象中，可以通过`trellis.par.get()`函数获得并通过`trellis.par.set()`函数更改。我们可以使用`show.settings()`函数来直观地展示当前的图形设置。
 
-后续再补充~
+查看默认设置：
+
+```{r}
+show.settings()
+```
+
+将它们保存到列表：
+
+```{r}
+mysettings <- trellis.par.get()
+```
+
+可以使用`names()`查看列表成分：
+
+```{r}
+names(mysettings)
+```
+
+修改：
+
+```{r}
+mysettings$superpose.symbol$pch <- c(1:10)
+trellis.par.set(mysettings)
+```
+
+查看更改：
+
+```{r}
+show.settings()
+```
+
+## 自定义图形条带
+
+面板条带默认的背景是：第一个调节变量时桃红色，第二个调节变量时浅绿色，第三个调节变量的浅蓝色。我们可以使用上一节描述的方法；或是加强控制，写一个自定义条带各方面的函数。
+
+```{r}
+library(lattice)
+histogram(~height | voice.part, data = singer,
+          strip = strip.custom(bg="lightgrey",
+                               par.strip.text = list(color="black", cex=.8, font=3)),
+          main = "Distribution of Heights by Voice Pitch",
+          xlab = "Height (inches)")
+```
+
+`option=`选项用来指定设定条带外观的函数，尽管我们可以从头写一个函数（参见`?strip.default`），但是改变一些设置并使用其他项的默认值更简单。`strip.custom()`函数可以帮助我们实现。`bg`选项控制了背景颜色，`par.strip.text`允许我们控制条带文本的外观。`font`选项可以分别取数值1、2、3、4，代表正常字体、粗体、斜体和粗斜体。
+
+
+## 页面布局
+
+`split`选项将一个页面分成指定数量的行和列，并把图放到结果矩阵的特定单元格。`split`选项的格式是：
+
+```r
+split = c(x, y, nx, ny)
+```
+
+也就是在包括`nx`乘以`ny`个图形的数组中，把当前图形放在`x,y`的位置，图形的起始位置是在左上角。
+
+```{r}
+library(lattice)
+
+graph1 <- histogram(~height | voice.part, data = singer,
+                    main = "Height of Choral Singers by Voice Part")
+graph2 <- bwplot(height~voice.part, data = singer)
+plot(graph1, split = c(1, 1, 1, 2))
+plot(graph2, split = c(1, 2, 1, 2), newpage = FALSE)
+```
+
+我们可以更好的控制尺寸：
+
+```{r}
+plot(graph1, position = c(0, .3, 1, 1))
+plot(graph2, position = c(0, 0, 1, .3), newpage = FALSE)
+```
+
+这里的`position=c(xmin, ymin, xmax, ymax)`选项中，页面的坐标系是x轴和y轴都从0到1的矩形，原点在左下角的(0,0)。
+
+我们还可以控制面板的顺序
+
+```{r}
+histogram(~height | voice.part, data = singer,
+          index.cond = list(c(2, 4, 6, 8, 1, 3, 5, 7)))
+```
+
+
+## 深入学习
+
+> Deepayan Sarkar 的“Lattice Graphics: An Introduction”（<http://mng.bz/jXUG>, 2008）和Willian G.Jacoby的“An Introduction to Lattice Graphics in R” （<http://mng.bz/v4TO>, 2010）
+
+

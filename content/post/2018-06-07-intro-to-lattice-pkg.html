@@ -353,9 +353,96 @@ densityplot(~mpg, data=mtcars,
             lwd=2, jitter=.005,
             key=key.trans)</code></pre>
 <p><img src="/post/2018-06-07-intro-to-lattice-pkg_files/figure-html/unnamed-chunk-10-1.png" width="672" /></p>
+<p>让我们使用R自带的CO2数据集讨论一下在单个图中包含分组和调节变量的例子。</p>
+<p>这个数据集描述了12种植物在7种二氧化碳浓度下的二氧化碳吸收率。6种植物来自魁北克，6种来自密西西比。每个产地有3种植物在冷藏条件下研究，3种在非冷藏条件下研究。在该例子中，<code>plant</code>是分组变量，<code>Type</code>和<code>Treatment</code>是调节变量。</p>
+<pre class="r"><code>library(lattice)
+colors &lt;- &quot;darkgreen&quot;
+symbols &lt;- c(1:12)
+linetypes &lt;- c(1:3)
+
+key.species &lt;- list(title=&quot;Plant&quot;,
+                    space = &quot;right&quot;,
+                    text = list(levels(CO2$Plant)),
+                    points = list(pch=symbols, col=colors))
+
+xyplot(uptake~conc|Type*Treatment, data=CO2,
+       group=Plant,
+       type=&quot;o&quot;,
+       pch=symbols, col=colors, lty=linetypes,
+       main = &quot;Carbon Dioxide Uptake\nin Grass Plants&quot;,
+       ylab = &quot;Uptake&quot;,
+       xlab = &quot;Concentration&quot;,
+       sub = &quot;Grass Species: Echinochloa crus-galli&quot;,
+       key = key.species)</code></pre>
+<p><img src="/post/2018-06-07-intro-to-lattice-pkg_files/figure-html/unnamed-chunk-11-1.png" width="672" /></p>
 </div>
 <div class="section level2">
 <h2>图形参数</h2>
 <p>lattice图形不受<code>par()</code>函数的影响，它使用的默认设置在一个大的列表对象中，可以通过<code>trellis.par.get()</code>函数获得并通过<code>trellis.par.set()</code>函数更改。我们可以使用<code>show.settings()</code>函数来直观地展示当前的图形设置。</p>
-<p>后续再补充~</p>
+<p>查看默认设置：</p>
+<pre class="r"><code>show.settings()</code></pre>
+<p><img src="/post/2018-06-07-intro-to-lattice-pkg_files/figure-html/unnamed-chunk-12-1.png" width="672" /></p>
+<p>将它们保存到列表：</p>
+<pre class="r"><code>mysettings &lt;- trellis.par.get()</code></pre>
+<p>可以使用<code>names()</code>查看列表成分：</p>
+<pre class="r"><code>names(mysettings)
+##  [1] &quot;grid.pars&quot;         &quot;fontsize&quot;          &quot;background&quot;       
+##  [4] &quot;panel.background&quot;  &quot;clip&quot;              &quot;add.line&quot;         
+##  [7] &quot;add.text&quot;          &quot;plot.polygon&quot;      &quot;box.dot&quot;          
+## [10] &quot;box.rectangle&quot;     &quot;box.umbrella&quot;      &quot;dot.line&quot;         
+## [13] &quot;dot.symbol&quot;        &quot;plot.line&quot;         &quot;plot.symbol&quot;      
+## [16] &quot;reference.line&quot;    &quot;strip.background&quot;  &quot;strip.shingle&quot;    
+## [19] &quot;strip.border&quot;      &quot;superpose.line&quot;    &quot;superpose.symbol&quot; 
+## [22] &quot;superpose.polygon&quot; &quot;regions&quot;           &quot;shade.colors&quot;     
+## [25] &quot;axis.line&quot;         &quot;axis.text&quot;         &quot;axis.components&quot;  
+## [28] &quot;layout.heights&quot;    &quot;layout.widths&quot;     &quot;box.3d&quot;           
+## [31] &quot;par.xlab.text&quot;     &quot;par.ylab.text&quot;     &quot;par.zlab.text&quot;    
+## [34] &quot;par.main.text&quot;     &quot;par.sub.text&quot;</code></pre>
+<p>修改：</p>
+<pre class="r"><code>mysettings$superpose.symbol$pch &lt;- c(1:10)
+trellis.par.set(mysettings)</code></pre>
+<p>查看更改：</p>
+<pre class="r"><code>show.settings()</code></pre>
+<p><img src="/post/2018-06-07-intro-to-lattice-pkg_files/figure-html/unnamed-chunk-16-1.png" width="672" /></p>
+</div>
+<div class="section level2">
+<h2>自定义图形条带</h2>
+<p>面板条带默认的背景是：第一个调节变量时桃红色，第二个调节变量时浅绿色，第三个调节变量的浅蓝色。我们可以使用上一节描述的方法；或是加强控制，写一个自定义条带各方面的函数。</p>
+<pre class="r"><code>library(lattice)
+histogram(~height | voice.part, data = singer,
+          strip = strip.custom(bg=&quot;lightgrey&quot;,
+                               par.strip.text = list(color=&quot;black&quot;, cex=.8, font=3)),
+          main = &quot;Distribution of Heights by Voice Pitch&quot;,
+          xlab = &quot;Height (inches)&quot;)</code></pre>
+<p><img src="/post/2018-06-07-intro-to-lattice-pkg_files/figure-html/unnamed-chunk-17-1.png" width="672" /></p>
+<p><code>option=</code>选项用来指定设定条带外观的函数，尽管我们可以从头写一个函数（参见<code>?strip.default</code>），但是改变一些设置并使用其他项的默认值更简单。<code>strip.custom()</code>函数可以帮助我们实现。<code>bg</code>选项控制了背景颜色，<code>par.strip.text</code>允许我们控制条带文本的外观。<code>font</code>选项可以分别取数值1、2、3、4，代表正常字体、粗体、斜体和粗斜体。</p>
+</div>
+<div class="section level2">
+<h2>页面布局</h2>
+<p><code>split</code>选项将一个页面分成指定数量的行和列，并把图放到结果矩阵的特定单元格。<code>split</code>选项的格式是：</p>
+<pre class="r"><code>split = c(x, y, nx, ny)</code></pre>
+<p>也就是在包括<code>nx</code>乘以<code>ny</code>个图形的数组中，把当前图形放在<code>x,y</code>的位置，图形的起始位置是在左上角。</p>
+<pre class="r"><code>library(lattice)
+
+graph1 &lt;- histogram(~height | voice.part, data = singer,
+                    main = &quot;Height of Choral Singers by Voice Part&quot;)
+graph2 &lt;- bwplot(height~voice.part, data = singer)
+plot(graph1, split = c(1, 1, 1, 2))
+plot(graph2, split = c(1, 2, 1, 2), newpage = FALSE)</code></pre>
+<p><img src="/post/2018-06-07-intro-to-lattice-pkg_files/figure-html/unnamed-chunk-18-1.png" width="672" /></p>
+<p>我们可以更好的控制尺寸：</p>
+<pre class="r"><code>plot(graph1, position = c(0, .3, 1, 1))
+plot(graph2, position = c(0, 0, 1, .3), newpage = FALSE)</code></pre>
+<p><img src="/post/2018-06-07-intro-to-lattice-pkg_files/figure-html/unnamed-chunk-19-1.png" width="672" /></p>
+<p>这里的<code>position=c(xmin, ymin, xmax, ymax)</code>选项中，页面的坐标系是x轴和y轴都从0到1的矩形，原点在左下角的(0,0)。</p>
+<p>我们还可以控制面板的顺序</p>
+<pre class="r"><code>histogram(~height | voice.part, data = singer,
+          index.cond = list(c(2, 4, 6, 8, 1, 3, 5, 7)))</code></pre>
+<p><img src="/post/2018-06-07-intro-to-lattice-pkg_files/figure-html/unnamed-chunk-20-1.png" width="672" /></p>
+</div>
+<div class="section level2">
+<h2>深入学习</h2>
+<blockquote>
+<p>Deepayan Sarkar 的“Lattice Graphics: An Introduction”（<a href="http://mng.bz/jXUG" class="uri">http://mng.bz/jXUG</a>, 2008）和Willian G.Jacoby的“An Introduction to Lattice Graphics in R” （<a href="http://mng.bz/v4TO" class="uri">http://mng.bz/v4TO</a>, 2010）</p>
+</blockquote>
 </div>
