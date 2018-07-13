@@ -1,0 +1,921 @@
+---
+draft: yes
+title: "使用GenomicDataCommons包下载和处理TCGA数据"
+author: "王诗翔"
+date: 2018-07-13
+slug: "use-gdc-pkg"
+categories: 
+    - R
+tags:
+    - TCGA
+    - GDC
+
+showonlyimage: false
+image: 
+description: 
+
+summary: "学习TCGA数据下载官方R包"
+---
+
+
+
+<blockquote>
+<p>资料来源该包手册。R社区已经有不少下载和处理TCGA数据的包，但目前能获取最新GRch38的应该只有TCGAbiolinks和本包，本包也是TCGA开发的官方R包，值得信赖。 比较麻烦的就是文件，样本ID的转换。</p>
+</blockquote>
+<div id="gdc" class="section level2">
+<h2>GDC是什么？</h2>
+<p>来自官网<a href="https://gdc.nci.nih.gov/about-gdc">Genomic Data Commons (GDC) website</a>的信息：</p>
+<p>The National Cancer Institute’s (NCI’s) Genomic Data Commons (GDC) is
+a data sharing platform that promotes precision medicine in
+oncology. It is not just a database or a tool; it is an expandable
+knowledge network supporting the import and standardization of genomic
+and clinical data from cancer research programs.</p>
+<p>The GDC contains NCI-generated data from some of the largest and most
+comprehensive cancer genomic datasets, including The Cancer Genome
+Atlas (TCGA) and Therapeutically Applicable Research to Generate
+Effective Therapies (TARGET). For the first time, these datasets have
+been harmonized using a common set of bioinformatics pipelines, so
+that the data can be directly compared.</p>
+<p>As a growing knowledge system for cancer, the GDC also enables
+researchers to submit data, and harmonizes these data for import into
+the GDC. As more researchers add clinical and genomic data to the GDC,
+it will become an even more powerful tool for making discoveries about
+the molecular basis of cancer that may lead to better care for
+patients.</p>
+<p>The
+<a href="https://gdc.cancer.gov/developers/gdc-data-model/gdc-data-model-components">data model for the GDC is complex</a>,
+but it worth a quick overview. The data model is encoded as a
+so-called property graph. Nodes represent entities such as Projects,
+Cases, Diagnoses, Files (various kinds), and Annotations. The
+relationships between these entities are maintained as edges. Both
+nodes and edges may have Properties that supply instance details. The
+GDC API exposes these nodes and edges in a somewhat simplified set
+of
+<a href="https://en.wikipedia.org/wiki/Representational_state_transfer">RESTful</a> endpoints.</p>
+</div>
+<div class="section level1">
+<h1>快速开始</h1>
+<p>这个软件尚在开发之中，希望收到用户的反馈。如果想要报告bug或者问题，要么<a href="https://github.com/Bioconductor/GenomicDataCommons/issues">submit a new issue</a>或者在R中使用<code>bug.report(package='GenomicDataCommons')</code> 。</p>
+<div class="section level2">
+<h2>安装</h2>
+<p>从bioconductor：</p>
+<pre class="r"><code>source(&#39;https://bioconductor.org/biocLite.R&#39;)
+biocLite(&#39;GenomicDataCommons&#39;)</code></pre>
+<p>导入：</p>
+<pre class="r"><code>library(GenomicDataCommons)</code></pre>
+</div>
+<div class="section level2">
+<h2>查看基本的特性</h2>
+<pre class="r"><code>GenomicDataCommons::status()
+## $commit
+## [1] &quot;e9e20d6f97f2bf6dd3b3261e36ead57c56a4c7cc&quot;
+## 
+## $data_release
+## [1] &quot;Data Release 12.0 - June 13, 2018&quot;
+## 
+## $status
+## [1] &quot;OK&quot;
+## 
+## $tag
+## [1] &quot;1.14.1&quot;
+## 
+## $version
+## [1] 1</code></pre>
+<blockquote>
+<p>If this statement results in an error such as <code>SSL connect error</code>, see <a href="#ssl-connection-errors">the troubleshooting section below</a>.</p>
+</blockquote>
+</div>
+<div class="section level2">
+<h2>寻找数据</h2>
+<p>下面的代码构建了一个<code>manifest</code>用来引导原始数据的下载，使用<code>HTSeq</code>查找和过滤Ovarian Cancer的基因表达的原始计数。</p>
+<pre class="r"><code>library(magrittr)
+ge_manifest = files() %&gt;%
+    filter( ~ cases.project.project_id == &#39;TCGA-OV&#39; &amp;
+                type == &#39;gene_expression&#39; &amp;
+                analysis.workflow_type == &#39;HTSeq - Counts&#39;) %&gt;%
+    manifest()</code></pre>
+</div>
+<div class="section level2">
+<h2>下载数据</h2>
+<p>下面的代码块下载 379 个基因表达数据文件。使用多进程进行下载可以极快地提高下载速度。</p>
+<pre class="r"><code>destdir = tempdir()
+fnames = lapply(ge_manifest$id[1:20],gdcdata)</code></pre>
+<p>如果下载的数据包含控制data，下载时需要包括一个<code>token</code>（有下载权限的标志）。具体请看<a href="#authentication">the authentication section below</a>.</p>
+</div>
+<div class="section level2">
+<h2>元数据获取</h2>
+<pre class="r"><code>expands = c(&quot;diagnoses&quot;,&quot;annotations&quot;,
+             &quot;demographic&quot;,&quot;exposures&quot;)
+clinResults = cases() %&gt;%
+    GenomicDataCommons::select(NULL) %&gt;%
+    GenomicDataCommons::expand(expands) %&gt;%
+    results(size=50)
+str(clinResults,list.len=10)
+## List of 4
+##  $ diagnoses  :List of 50
+##   ..$ 3562f2d3-a4ca-4eb3-a6a0-d2e9d68364c6:&#39;data.frame&#39;: 1 obs. of  19 variables:
+##   .. ..$ progression_or_recurrence        : chr &quot;not reported&quot;
+##   .. ..$ classification_of_tumor          : chr &quot;metastasis&quot;
+##   .. ..$ last_known_disease_status        : chr &quot;not reported&quot;
+##   .. ..$ tumor_grade                      : chr &quot;not reported&quot;
+##   .. ..$ tissue_or_organ_of_origin        : chr &quot;Lung, NOS&quot;
+##   .. ..$ created_datetime                 : chr &quot;2017-06-19T09:21:58.285024-05:00&quot;
+##   .. ..$ updated_datetime                 : chr &quot;2017-10-13T13:38:40.036812-05:00&quot;
+##   .. ..$ primary_diagnosis                : chr &quot;Adenocarcinoma, NOS&quot;
+##   .. ..$ submitter_id                     : chr &quot;AD7376_diagnosis&quot;
+##   .. ..$ site_of_resection_or_biopsy      : chr &quot;Liver&quot;
+##   .. .. [list output truncated]
+##   ..$ 36a29f50-5081-4a45-ab83-b11164e6781a:&#39;data.frame&#39;: 1 obs. of  19 variables:
+##   .. ..$ progression_or_recurrence        : chr &quot;not reported&quot;
+##   .. ..$ classification_of_tumor          : chr &quot;metastasis&quot;
+##   .. ..$ last_known_disease_status        : chr &quot;not reported&quot;
+##   .. ..$ tumor_grade                      : chr &quot;not reported&quot;
+##   .. ..$ tissue_or_organ_of_origin        : chr &quot;Lung, NOS&quot;
+##   .. ..$ created_datetime                 : chr &quot;2017-06-16T16:15:26.111532-05:00&quot;
+##   .. ..$ updated_datetime                 : chr &quot;2017-10-13T13:38:40.036812-05:00&quot;
+##   .. ..$ primary_diagnosis                : chr &quot;Small cell carcinoma, NOS&quot;
+##   .. ..$ submitter_id                     : chr &quot;AD15003_diagnosis&quot;
+##   .. ..$ site_of_resection_or_biopsy      : chr &quot;Lymph node, NOS&quot;
+##   .. .. [list output truncated]
+##   ..$ b8ed18f9-2582-4454-a5d8-529370d9da2b:&#39;data.frame&#39;: 1 obs. of  19 variables:
+##   .. ..$ progression_or_recurrence        : chr &quot;not reported&quot;
+##   .. ..$ classification_of_tumor          : chr &quot;Unknown&quot;
+##   .. ..$ last_known_disease_status        : chr &quot;not reported&quot;
+##   .. ..$ tumor_grade                      : chr &quot;not reported&quot;
+##   .. ..$ tissue_or_organ_of_origin        : chr &quot;Head, face or neck, NOS&quot;
+##   .. ..$ created_datetime                 : chr &quot;2017-06-16T16:04:08.462038-05:00&quot;
+##   .. ..$ updated_datetime                 : chr &quot;2017-10-13T13:38:40.036812-05:00&quot;
+##   .. ..$ primary_diagnosis                : chr &quot;Squamous cell carcinoma, NOS&quot;
+##   .. ..$ submitter_id                     : chr &quot;AD4846_diagnosis&quot;
+##   .. ..$ site_of_resection_or_biopsy      : chr &quot;Lung, NOS&quot;
+##   .. .. [list output truncated]
+##   ..$ fd9ffb79-7d96-4a14-955e-236011d283b6:&#39;data.frame&#39;: 1 obs. of  19 variables:
+##   .. ..$ progression_or_recurrence        : chr &quot;not reported&quot;
+##   .. ..$ classification_of_tumor          : chr &quot;primary&quot;
+##   .. ..$ last_known_disease_status        : chr &quot;not reported&quot;
+##   .. ..$ tumor_grade                      : chr &quot;not reported&quot;
+##   .. ..$ tissue_or_organ_of_origin        : chr &quot;Colon, NOS&quot;
+##   .. ..$ created_datetime                 : chr &quot;2017-06-19T09:25:18.484242-05:00&quot;
+##   .. ..$ updated_datetime                 : chr &quot;2017-10-13T13:38:40.036812-05:00&quot;
+##   .. ..$ primary_diagnosis                : chr &quot;Adenocarcinoma, NOS&quot;
+##   .. ..$ submitter_id                     : chr &quot;AD8471_diagnosis&quot;
+##   .. ..$ site_of_resection_or_biopsy      : chr &quot;Colon, NOS&quot;
+##   .. .. [list output truncated]
+##   ..$ 672fdc0b-0844-4bbf-8b3a-1bff693d17fc:&#39;data.frame&#39;: 1 obs. of  19 variables:
+##   .. ..$ progression_or_recurrence        : chr &quot;not reported&quot;
+##   .. ..$ classification_of_tumor          : chr &quot;primary&quot;
+##   .. ..$ last_known_disease_status        : chr &quot;not reported&quot;
+##   .. ..$ tumor_grade                      : chr &quot;not reported&quot;
+##   .. ..$ tissue_or_organ_of_origin        : chr &quot;Stomach, NOS&quot;
+##   .. ..$ created_datetime                 : chr &quot;2017-06-16T16:04:28.356056-05:00&quot;
+##   .. ..$ updated_datetime                 : chr &quot;2017-10-13T13:38:40.036812-05:00&quot;
+##   .. ..$ primary_diagnosis                : chr &quot;Adenocarcinoma, NOS&quot;
+##   .. ..$ submitter_id                     : chr &quot;AD880_diagnosis&quot;
+##   .. ..$ site_of_resection_or_biopsy      : chr &quot;Stomach, NOS&quot;
+##   .. .. [list output truncated]
+##   ..$ 3468b376-b05e-40e7-851b-25bb9251378f:&#39;data.frame&#39;: 1 obs. of  19 variables:
+##   .. ..$ progression_or_recurrence        : chr &quot;not reported&quot;
+##   .. ..$ classification_of_tumor          : chr &quot;Unknown&quot;
+##   .. ..$ last_known_disease_status        : chr &quot;not reported&quot;
+##   .. ..$ tumor_grade                      : chr &quot;not reported&quot;
+##   .. ..$ tissue_or_organ_of_origin        : chr &quot;Unknown&quot;
+##   .. ..$ created_datetime                 : chr &quot;2017-06-16T16:05:07.197842-05:00&quot;
+##   .. ..$ updated_datetime                 : chr &quot;2017-10-13T13:38:40.036812-05:00&quot;
+##   .. ..$ primary_diagnosis                : chr &quot;Adenocarcinoma, NOS&quot;
+##   .. ..$ submitter_id                     : chr &quot;AD103_diagnosis&quot;
+##   .. ..$ site_of_resection_or_biopsy      : chr &quot;Not Reported&quot;
+##   .. .. [list output truncated]
+##   ..$ 2d29df1c-a548-4e95-8206-3c473e9ffdca:&#39;data.frame&#39;: 1 obs. of  19 variables:
+##   .. ..$ progression_or_recurrence        : chr &quot;not reported&quot;
+##   .. ..$ classification_of_tumor          : chr &quot;metastasis&quot;
+##   .. ..$ last_known_disease_status        : chr &quot;not reported&quot;
+##   .. ..$ tumor_grade                      : chr &quot;not reported&quot;
+##   .. ..$ tissue_or_organ_of_origin        : chr &quot;Lung, NOS&quot;
+##   .. ..$ created_datetime                 : chr &quot;2017-06-16T15:43:06.585011-05:00&quot;
+##   .. ..$ updated_datetime                 : chr &quot;2018-01-29T14:25:29.405142-06:00&quot;
+##   .. ..$ primary_diagnosis                : chr &quot;Adenocarcinoma, NOS&quot;
+##   .. ..$ submitter_id                     : chr &quot;AD2816_diagnosis&quot;
+##   .. ..$ site_of_resection_or_biopsy      : chr &quot;Connective, subcutaneous and other soft tissues, NOS&quot;
+##   .. .. [list output truncated]
+##   ..$ 5bd74091-bef3-49a1-b617-45167f02baa6:&#39;data.frame&#39;: 1 obs. of  19 variables:
+##   .. ..$ progression_or_recurrence        : chr &quot;not reported&quot;
+##   .. ..$ classification_of_tumor          : chr &quot;Unknown&quot;
+##   .. ..$ last_known_disease_status        : chr &quot;not reported&quot;
+##   .. ..$ tumor_grade                      : chr &quot;not reported&quot;
+##   .. ..$ tissue_or_organ_of_origin        : chr &quot;Unknown&quot;
+##   .. ..$ created_datetime                 : chr &quot;2017-06-16T15:39:59.533998-05:00&quot;
+##   .. ..$ updated_datetime                 : chr &quot;2017-10-13T13:38:40.036812-05:00&quot;
+##   .. ..$ primary_diagnosis                : chr &quot;Adenocarcinoma, NOS&quot;
+##   .. ..$ submitter_id                     : chr &quot;AD10160_diagnosis&quot;
+##   .. ..$ site_of_resection_or_biopsy      : chr &quot;Bone, NOS&quot;
+##   .. .. [list output truncated]
+##   ..$ 48758eeb-6d56-41ff-b0f5-e2e5bfa3e63a:&#39;data.frame&#39;: 1 obs. of  19 variables:
+##   .. ..$ progression_or_recurrence        : chr &quot;not reported&quot;
+##   .. ..$ classification_of_tumor          : chr &quot;metastasis&quot;
+##   .. ..$ last_known_disease_status        : chr &quot;not reported&quot;
+##   .. ..$ tumor_grade                      : chr &quot;not reported&quot;
+##   .. ..$ tissue_or_organ_of_origin        : chr &quot;Anus, NOS&quot;
+##   .. ..$ created_datetime                 : chr &quot;2017-06-19T09:33:40.540869-05:00&quot;
+##   .. ..$ updated_datetime                 : chr &quot;2017-10-13T13:38:40.036812-05:00&quot;
+##   .. ..$ primary_diagnosis                : chr &quot;Squamous cell carcinoma, NOS&quot;
+##   .. ..$ submitter_id                     : chr &quot;AD9751_diagnosis&quot;
+##   .. ..$ site_of_resection_or_biopsy      : chr &quot;Brain, NOS&quot;
+##   .. .. [list output truncated]
+##   ..$ 2bac2a54-5843-498d-bfeb-6d795ba54665:&#39;data.frame&#39;: 1 obs. of  19 variables:
+##   .. ..$ progression_or_recurrence        : chr &quot;not reported&quot;
+##   .. ..$ classification_of_tumor          : chr &quot;primary&quot;
+##   .. ..$ last_known_disease_status        : chr &quot;not reported&quot;
+##   .. ..$ tumor_grade                      : chr &quot;not reported&quot;
+##   .. ..$ tissue_or_organ_of_origin        : chr &quot;Kidney, NOS&quot;
+##   .. ..$ created_datetime                 : chr &quot;2017-06-16T15:43:06.585011-05:00&quot;
+##   .. ..$ updated_datetime                 : chr &quot;2017-10-13T13:38:40.036812-05:00&quot;
+##   .. ..$ primary_diagnosis                : chr &quot;Papillary renal cell carcinoma&quot;
+##   .. ..$ submitter_id                     : chr &quot;AD2814_diagnosis&quot;
+##   .. ..$ site_of_resection_or_biopsy      : chr &quot;Kidney, NOS&quot;
+##   .. .. [list output truncated]
+##   .. [list output truncated]
+##  $ case_id    : chr [1:50] &quot;3562f2d3-a4ca-4eb3-a6a0-d2e9d68364c6&quot; &quot;36a29f50-5081-4a45-ab83-b11164e6781a&quot; &quot;b8ed18f9-2582-4454-a5d8-529370d9da2b&quot; &quot;fd9ffb79-7d96-4a14-955e-236011d283b6&quot; ...
+##  $ demographic:&#39;data.frame&#39;: 50 obs. of  8 variables:
+##   ..$ updated_datetime: chr [1:50] &quot;2017-10-13T13:38:40.036812-05:00&quot; &quot;2017-10-13T13:38:40.036812-05:00&quot; &quot;2017-10-13T13:38:40.036812-05:00&quot; &quot;2017-10-13T13:38:40.036812-05:00&quot; ...
+##   ..$ created_datetime: chr [1:50] &quot;2017-06-19T11:44:09.223033-05:00&quot; &quot;2017-06-19T11:42:12.871583-05:00&quot; &quot;2017-06-19T11:33:07.960036-05:00&quot; &quot;2017-06-19T11:45:29.124685-05:00&quot; ...
+##   ..$ gender          : chr [1:50] &quot;male&quot; &quot;male&quot; &quot;female&quot; &quot;female&quot; ...
+##   ..$ submitter_id    : chr [1:50] &quot;AD7376_demographic&quot; &quot;AD15003_demographic&quot; &quot;AD4846_demographic&quot; &quot;AD8471_demographic&quot; ...
+##   ..$ state           : chr [1:50] &quot;submitted&quot; &quot;submitted&quot; &quot;submitted&quot; &quot;submitted&quot; ...
+##   ..$ race            : chr [1:50] &quot;not reported&quot; &quot;not reported&quot; &quot;not reported&quot; &quot;not reported&quot; ...
+##   ..$ demographic_id  : chr [1:50] &quot;39e8ea37-69ca-4541-b26c-4dbaa5cd8b77&quot; &quot;3a456586-6198-44d7-9dfa-fb510796d3ad&quot; &quot;ec055724-878d-4c2f-881c-aae7fcf8e5aa&quot; &quot;6f286488-6b1d-432c-8014-bacf68423fd6&quot; ...
+##   ..$ ethnicity       : chr [1:50] &quot;not reported&quot; &quot;not reported&quot; &quot;not reported&quot; &quot;not reported&quot; ...
+##  $ id         : chr [1:50] &quot;3562f2d3-a4ca-4eb3-a6a0-d2e9d68364c6&quot; &quot;36a29f50-5081-4a45-ab83-b11164e6781a&quot; &quot;b8ed18f9-2582-4454-a5d8-529370d9da2b&quot; &quot;fd9ffb79-7d96-4a14-955e-236011d283b6&quot; ...
+##  - attr(*, &quot;row.names&quot;)= int [1:50] 1 2 3 4 5 6 7 8 9 10 ...
+##  - attr(*, &quot;class&quot;)= chr [1:3] &quot;GDCcasesResults&quot; &quot;GDCResults&quot; &quot;list&quot;</code></pre>
+</div>
+<div class="section level2">
+<h2>基本设计</h2>
+<p>这个包的设计跟<code>dplyr</code>的“hadleyverse”方法有点类似。大致上，寻找和获取文件、元数据的函数可以分为：</p>
+<ol style="list-style-type: decimal">
+<li>基于GDC API终点的简单查询构建器</li>
+<li>应用，修正过滤，字段选择和分面的动词集合并生成一个新的查询对象</li>
+<li>执行查询和从GDC返回结果的动词集合</li>
+</ol>
+<p>另外还有一些询问GDC API信息与可获取的字段，索引BAM文件，下载实际数据文件的函数。</p>
+<p>下面是一个概览<a href="#fn1" class="footnote-ref" id="fnref1"><sup>1</sup></a>：</p>
+<ul>
+<li>Creating a query
+<ul>
+<li><code>projects()</code></li>
+<li><code>cases()</code></li>
+<li><code>files()</code></li>
+<li><code>annotations()</code></li>
+</ul></li>
+<li>Manipulating a query
+<ul>
+<li><code>filter()</code></li>
+<li><code>facet()</code></li>
+<li><code>select()</code></li>
+</ul></li>
+<li>Introspection on the GDC API fields
+<ul>
+<li><code>mapping()</code></li>
+<li><code>available_fields()</code></li>
+<li><code>default_fields()</code></li>
+<li><code>grep_fields()</code></li>
+<li><code>field_picker()</code></li>
+<li><code>available_values()</code></li>
+<li><code>available_expand()</code></li>
+</ul></li>
+<li>Executing an API call to retrieve query results
+<ul>
+<li><code>results()</code></li>
+<li><code>count()</code></li>
+<li><code>response()</code></li>
+</ul></li>
+<li>Raw data file downloads
+<ul>
+<li><code>gdcdata()</code></li>
+<li><code>transfer()</code></li>
+<li><code>gdc_client()</code></li>
+</ul></li>
+<li>Summarizing and aggregating field values (faceting)
+<ul>
+<li><code>aggregations()</code></li>
+</ul></li>
+<li>Authentication
+<ul>
+<li><code>gdc_token()</code></li>
+</ul></li>
+<li>BAM file slicing
+<ul>
+<li><code>slicing()</code></li>
+</ul></li>
+</ul>
+</div>
+<div class="section level2">
+<h2>使用</h2>
+<p>处理NCI GDC是存在两类操作。</p>
+<ol style="list-style-type: decimal">
+<li><a href="#querying-metadata">查询元数据和查找数据文件</a> （例如，为某类癌症病人查找所有的基因表达定量数据文件）</li>
+<li>从GDC<a href="#datafile-access-and-download">传输原始或处理过的数据</a>到另一台电脑</li>
+</ol>
+<p>这两类操作在下面进行详述。</p>
+</div>
+<div class="section level2">
+<h2>查询元数据</h2>
+<p>大量关于病人、文件、项目和所谓注释的元数据都可以通过NCI GDC API获取。通常，我们想要查询元数据，然后进行下载或者执行所谓的聚合操作（和<code>table()</code>类似的功能）</p>
+<p>首先<a href="#creating-a-query">创建一个空查询</a>获取元数据。我们然后经常想要<a href="#filtering"><code>filter</code></a>查询，对<a href="#retrieving-results">retrieving results</a>提前进行一些限制。<code>GenomicDataCommons</code>包有列出条目的<a href="#fields-and-values">帮助函数</a>用来帮助过滤。</p>
+<div class="section level3">
+<h3>创建查询</h3>
+<p>下面4个函数可以创建<code>GDCQuery</code>对象用来查询元数据：</p>
+<ul>
+<li><code>projects()</code></li>
+<li><code>cases()</code></li>
+<li><code>files()</code></li>
+<li><code>annotations()</code></li>
+</ul>
+<pre class="r"><code>pquery = projects()</code></pre>
+<p><code>pquery</code>对象现在是一个S3类，<code>GDCQuery</code>。对象包含下面一些元素：</p>
+<ul>
+<li>字段：这是一个关于字段的字符串向量，在检索数据时会返回。如果没有指定字段，会使用默认字段
+(查看 <code>default_fields()</code>)。</li>
+<li>filters: 在使用<code>filter()</code>方法后会返回结果用于对后续的结果检索进行过滤。</li>
+<li>facets: 一个字段的字符串向量，在聚合数据（<code>aggreations()</code>）时使用。</li>
+<li>archive: 要么“default”要么<a href="https://gdc-portal.nci.nih.gov/legacy-archive/">“legacy”</a>。</li>
+<li>token: 来自GDC的token字符串。查看<a href="#authentication">the authentication section</a>获取详情，注意，通常检索原始数据是不需要权限的，有些数据的下载需要。</li>
+</ul>
+<p>查看实际的对象（习惯使用<code>str()</code>！），注意查询不会包含结果。</p>
+<pre class="r"><code>str(pquery)
+## List of 5
+##  $ fields : chr [1:16] &quot;awg_review&quot; &quot;dbgap_accession_number&quot; &quot;disease_type&quot; &quot;in_review&quot; ...
+##  $ filters: NULL
+##  $ facets : NULL
+##  $ legacy : logi FALSE
+##  $ expand : NULL
+##  - attr(*, &quot;class&quot;)= chr [1:3] &quot;gdc_projects&quot; &quot;GDCQuery&quot; &quot;list&quot;</code></pre>
+</div>
+<div class="section level3">
+<h3>检索结果</h3>
+<p><a href="https://docs.gdc.cancer.gov/API/Users_Guide/Search_and_Retrieval/#size-and-from">[ GDC分页文档]</a></p>
+<p><a href="https://docs.gdc.cancer.gov/API/Users_Guide/Search_and_Retrieval/#sort">[ GDC排序文档 ]</a></p>
+<p>如果构建好了查询对象，下一步是从GDC检索结果。检索结果的最基本类型是满足条件的、可获取记录的简单<code>counts()</code>。注意我们刚才并未设置如何过滤，所以<code>count()</code>会返回所有满足标准的项目记录。</p>
+<pre class="r"><code>pcount = count(pquery)
+# 或者
+pcount = pquery %&gt;% count()
+pcount
+## [1] 40</code></pre>
+<p><code>results()</code>方法会取回实际的结果：</p>
+<pre class="r"><code>presults = pquery %&gt;% results()</code></pre>
+<p>这些从GDC返回的结果都以<a href="http://www.json.org/">JSON</a>格式存储，函数自动将它转换为R里面的嵌套列表。</p>
+<pre class="r"><code>str(presults)
+## List of 8
+##  $ dbgap_accession_number: chr [1:10] &quot;phs001179&quot; &quot;phs000470&quot; NA NA ...
+##  $ disease_type          :List of 10
+##   ..$ FM-AD    : chr [1:23] &quot;Germ Cell Neoplasms&quot; &quot;Acinar Cell Neoplasms&quot; &quot;Miscellaneous Tumors&quot; &quot;Thymic Epithelial Neoplasms&quot; ...
+##   ..$ TARGET-RT: chr &quot;Rhabdoid Tumor&quot;
+##   ..$ TCGA-UCS : chr &quot;Uterine Carcinosarcoma&quot;
+##   ..$ TCGA-LUSC: chr &quot;Lung Squamous Cell Carcinoma&quot;
+##   ..$ TCGA-BRCA: chr &quot;Breast Invasive Carcinoma&quot;
+##   ..$ TCGA-SKCM: chr &quot;Skin Cutaneous Melanoma&quot;
+##   ..$ TARGET-OS: chr &quot;Osteosarcoma&quot;
+##   ..$ TCGA-THYM: chr &quot;Thymoma&quot;
+##   ..$ TARGET-WT: chr &quot;High-Risk Wilms Tumor&quot;
+##   ..$ TCGA-ESCA: chr &quot;Esophageal Carcinoma&quot;
+##  $ released              : logi [1:10] TRUE TRUE TRUE TRUE TRUE TRUE ...
+##  $ state                 : chr [1:10] &quot;open&quot; &quot;open&quot; &quot;open&quot; &quot;open&quot; ...
+##  $ primary_site          :List of 10
+##   ..$ FM-AD    : chr [1:42] &quot;Kidney&quot; &quot;Testis&quot; &quot;Unknown&quot; &quot;Other and unspecified parts of biliary tract&quot; ...
+##   ..$ TARGET-RT: chr &quot;Kidney&quot;
+##   ..$ TCGA-UCS : chr &quot;Uterus&quot;
+##   ..$ TCGA-LUSC: chr &quot;Lung&quot;
+##   ..$ TCGA-BRCA: chr &quot;Breast&quot;
+##   ..$ TCGA-SKCM: chr &quot;Skin&quot;
+##   ..$ TARGET-OS: chr &quot;Bone&quot;
+##   ..$ TCGA-THYM: chr &quot;Thymus&quot;
+##   ..$ TARGET-WT: chr &quot;Kidney&quot;
+##   ..$ TCGA-ESCA: chr &quot;Esophagus&quot;
+##  $ project_id            : chr [1:10] &quot;FM-AD&quot; &quot;TARGET-RT&quot; &quot;TCGA-UCS&quot; &quot;TCGA-LUSC&quot; ...
+##  $ id                    : chr [1:10] &quot;FM-AD&quot; &quot;TARGET-RT&quot; &quot;TCGA-UCS&quot; &quot;TCGA-LUSC&quot; ...
+##  $ name                  : chr [1:10] &quot;Foundation Medicine Adult Cancer Clinical Dataset (FM-AD)&quot; &quot;Rhabdoid Tumor&quot; &quot;Uterine Carcinosarcoma&quot; &quot;Lung Squamous Cell Carcinoma&quot; ...
+##  - attr(*, &quot;row.names&quot;)= int [1:10] 1 2 3 4 5 6 7 8 9 10
+##  - attr(*, &quot;class&quot;)= chr [1:3] &quot;GDCprojectsResults&quot; &quot;GDCResults&quot; &quot;list&quot;</code></pre>
+<p>默认只返回10条记录，我们可以对<code>results()</code>添加<code>size</code>和<code>from</code>参数改变数目。这里存在一个简单的方法，<code>results_all()</code>会返回所有可获得的结果。小心使用这个函数，它可以消耗非常长的时间，数据巨大。</p>
+<pre class="r"><code>length(ids(presults))
+## [1] 10
+presults = pquery %&gt;% results_all()
+length(ids(presults))
+## [1] 40
+# 包含所有的记录
+length(ids(presults)) == count(pquery)
+## [1] TRUE</code></pre>
+<p>抽取结果的子集或者将结果变成更通用的R数据结构不是很简单，然后可以借助
+<a href="https://github.com/hadley/purrr">purrr</a>、
+<a href="https://renkun.me/rlist/">rlist</a>、
+和<a href="https://cran.r-project.org/web/packages/data.tree/vignettes/data.tree.html">data.tree</a>。</p>
+<p>想要交互式浏览结果，使用<a href="https://github.com/timelyportfolio/listviewer">listviewer</a>包。</p>
+</div>
+<div class="section level3">
+<h3>字段和值</h3>
+<p><a href="https://docs.gdc.cancer.gov/API/Users_Guide/Search_and_Retrieval/#fields">[ GDC <code>fields</code> 文档 ]</a></p>
+<p>查询和检索GDC数据的中心是指定想要返回的字段、根据字段与值进行过滤、分面或者聚合。本包包含两个简单地函数，<code>available_fields()</code>与<code>default_fields()</code>。每个都可以操作“cases”, “files”, “annotations”, “projects”或者<code>GDCQuery</code>对象。</p>
+<pre class="r"><code>default_fields(&#39;files&#39;)
+##  [1] &quot;access&quot;                &quot;acl&quot;                  
+##  [3] &quot;batch_id&quot;              &quot;created_datetime&quot;     
+##  [5] &quot;data_category&quot;         &quot;data_format&quot;          
+##  [7] &quot;data_type&quot;             &quot;error_type&quot;           
+##  [9] &quot;experimental_strategy&quot; &quot;file_autocomplete&quot;    
+## [11] &quot;file_id&quot;               &quot;file_name&quot;            
+## [13] &quot;file_size&quot;             &quot;file_state&quot;           
+## [15] &quot;imaging_date&quot;          &quot;magnification&quot;        
+## [17] &quot;md5sum&quot;                &quot;origin&quot;               
+## [19] &quot;platform&quot;              &quot;read_pair_number&quot;     
+## [21] &quot;revision&quot;              &quot;state&quot;                
+## [23] &quot;state_comment&quot;         &quot;submitter_id&quot;         
+## [25] &quot;tags&quot;                  &quot;type&quot;                 
+## [27] &quot;updated_datetime&quot;
+# The number of fields available for files endpoint
+length(available_fields(&#39;files&#39;))
+## [1] 703
+# The first few fields available for files endpoint
+head(available_fields(&#39;files&#39;))
+## [1] &quot;access&quot;                    &quot;acl&quot;                      
+## [3] &quot;analysis.analysis_id&quot;      &quot;analysis.analysis_type&quot;   
+## [5] &quot;analysis.batch_id&quot;         &quot;analysis.created_datetime&quot;</code></pre>
+<p>字段可以通过类似<code>dplyr</code>包流程的方式指定，<code>select()</code>函数是重设<code>GDCQuery</code>对象字段槽的动词；注意这与dplyr限制已有字段不同。</p>
+<pre class="r"><code># 这里是默认字段
+qcases = cases()
+qcases$fields
+##  [1] &quot;aliquot_ids&quot;              &quot;analyte_ids&quot;             
+##  [3] &quot;batch_id&quot;                 &quot;case_autocomplete&quot;       
+##  [5] &quot;case_id&quot;                  &quot;created_datetime&quot;        
+##  [7] &quot;days_to_index&quot;            &quot;days_to_lost_to_followup&quot;
+##  [9] &quot;disease_type&quot;             &quot;index_date&quot;              
+## [11] &quot;lost_to_followup&quot;         &quot;portion_ids&quot;             
+## [13] &quot;primary_site&quot;             &quot;sample_ids&quot;              
+## [15] &quot;slide_ids&quot;                &quot;state&quot;                   
+## [17] &quot;submitter_aliquot_ids&quot;    &quot;submitter_analyte_ids&quot;   
+## [19] &quot;submitter_id&quot;             &quot;submitter_portion_ids&quot;   
+## [21] &quot;submitter_sample_ids&quot;     &quot;submitter_slide_ids&quot;     
+## [23] &quot;updated_datetime&quot;
+# 使用所有的字段
+# Note that checking of fields is done by select()
+qcases = cases() %&gt;% GenomicDataCommons::select(available_fields(&#39;cases&#39;))
+head(qcases$fields)
+## [1] &quot;case_id&quot;                   &quot;aliquot_ids&quot;              
+## [3] &quot;analyte_ids&quot;               &quot;annotations.annotation_id&quot;
+## [5] &quot;annotations.batch_id&quot;      &quot;annotations.case_id&quot;</code></pre>
+<p><code>grep_fields()</code>与<code>field_picker()</code>可以操作寻找感兴趣的字段。</p>
+</div>
+<div class="section level3">
+<h3>分面与聚合</h3>
+<p><a href="https://docs.gdc.cancer.gov/API/Users_Guide/Search_and_Retrieval/#facets">[ GDC <code>facet</code> 文档 ]</a></p>
+<p>有点类似R的<code>table</code>方法，GDC API提供了称为聚合或分面的操作，通过指定一个或多个字段，GDC会返回所有可能值的计数。</p>
+<pre class="r"><code># 指定文件类型的综述
+res = files() %&gt;% facet(c(&#39;type&#39;,&#39;data_type&#39;)) %&gt;% aggregations()
+res$type
+##                            key doc_count
+## 1      simple_somatic_mutation     64015
+## 2   annotated_somatic_mutation     63580
+## 3                aligned_reads     45985
+## 4          copy_number_segment     44752
+## 5              gene_expression     34713
+## 6                  slide_image     30036
+## 7       biospecimen_supplement     25151
+## 8             mirna_expression     22976
+## 9          clinical_supplement     12496
+## 10      methylation_beta_value     12359
+## 11 aggregated_somatic_mutation       186
+## 12     masked_somatic_mutation       132</code></pre>
+</div>
+<div id="filtering" class="section level3">
+<h3>Filtering</h3>
+<p><a href="https://docs.gdc.cancer.gov/API/Users_Guide/Search_and_Retrieval/#filters-specifying-the-query">[ GDC <code>filtering</code> 文档 ]</a></p>
+<p>The GenomicDataCommons package 使用了一种非标准的评估形式来指定类似于R的查询，然后翻译为R列表。这个R表达式使用了公式接口，如Hadley Wickham 在<a href="https://cran.r-project.org/web/packages/dplyr/vignettes/nse.html">vignette on non-standard evaluation</a>中所建议。</p>
+<blockquote>
+<p>It’s best to use a formula because a formula captures both the expression to
+evaluate and the environment where the evaluation occurs. This is important if
+the expression is a mixture of variables in a data frame and objects in the
+local environment [for example].</p>
+</blockquote>
+<p>对于用户来说不需要关注很多底层细节，除了注意过滤表达式必须以<code>~</code>开始。</p>
+<pre class="r"><code>qfiles = files()
+qfiles %&gt;% count() # all files
+## [1] 356381</code></pre>
+<p>过滤文件类型为基因表达：</p>
+<pre class="r"><code>qfiles = files() %&gt;% filter(~ type == &#39;gene_expression&#39;)
+# here is what the filter looks like after translation
+str(get_filter(qfiles))
+## List of 2
+##  $ op     : &#39;scalar&#39; chr &quot;=&quot;
+##  $ content:List of 2
+##   ..$ field: chr &quot;type&quot;
+##   ..$ value: chr &quot;gene_expression&quot;</code></pre>
+<p>要是我们想创建一个基于项目（比如“TCGA-OVCA”）的过滤该怎么办？我们有一些方法可以发现可获取的字段。</p>
+<p>第一种是基于一些基本的R函数和直觉。</p>
+<pre class="r"><code>grep(&#39;pro&#39;,available_fields(&#39;files&#39;),value=TRUE)
+##  [1] &quot;cases.diagnoses.progression_free_survival&quot;               
+##  [2] &quot;cases.diagnoses.progression_free_survival_event&quot;         
+##  [3] &quot;cases.diagnoses.progression_or_recurrence&quot;               
+##  [4] &quot;cases.project.awg_review&quot;                                
+##  [5] &quot;cases.project.dbgap_accession_number&quot;                    
+##  [6] &quot;cases.project.disease_type&quot;                              
+##  [7] &quot;cases.project.in_review&quot;                                 
+##  [8] &quot;cases.project.intended_release_date&quot;                     
+##  [9] &quot;cases.project.is_legacy&quot;                                 
+## [10] &quot;cases.project.name&quot;                                      
+## [11] &quot;cases.project.primary_site&quot;                              
+## [12] &quot;cases.project.program.dbgap_accession_number&quot;            
+## [13] &quot;cases.project.program.name&quot;                              
+## [14] &quot;cases.project.program.program_id&quot;                        
+## [15] &quot;cases.project.project_id&quot;                                
+## [16] &quot;cases.project.releasable&quot;                                
+## [17] &quot;cases.project.release_requested&quot;                         
+## [18] &quot;cases.project.released&quot;                                  
+## [19] &quot;cases.project.request_submission&quot;                        
+## [20] &quot;cases.project.state&quot;                                     
+## [21] &quot;cases.project.submission_enabled&quot;                        
+## [22] &quot;cases.samples.days_to_sample_procurement&quot;                
+## [23] &quot;cases.samples.method_of_sample_procurement&quot;              
+## [24] &quot;cases.samples.portions.slides.number_proliferating_cells&quot;
+## [25] &quot;cases.tissue_source_site.project&quot;</code></pre>
+<p>有意思的是，项目信息嵌套在case里面。我们不需要知道细节除了一些信息在某些文件记录中的猜测，另外，我们需要知道在哪里（<code>project_id</code>）。</p>
+<pre class="r"><code>files() %&gt;% facet(&#39;cases.project.project_id&#39;) %&gt;% aggregations()
+## $cases.project.project_id
+##            key doc_count
+## 1        FM-AD     36134
+## 2    TCGA-BRCA     31511
+## 3    TCGA-LUAD     17051
+## 4    TCGA-UCEC     16130
+## 5    TCGA-HNSC     15266
+## 6      TCGA-OV     15057
+## 7    TCGA-THCA     14420
+## 8    TCGA-LUSC     15323
+## 9     TCGA-LGG     14723
+## 10   TCGA-KIRC     15082
+## 11   TCGA-PRAD     14287
+## 12   TCGA-COAD     14270
+## 13    TCGA-GBM     11973
+## 14   TCGA-SKCM     12724
+## 15   TCGA-STAD     12845
+## 16   TCGA-BLCA     11710
+## 17   TCGA-LIHC     10814
+## 18   TCGA-CESC      8593
+## 19   TCGA-KIRP      8506
+## 20   TCGA-SARC      7493
+## 21   TCGA-PAAD      5306
+## 22   TCGA-ESCA      5270
+## 23   TCGA-PCPG      5032
+## 24   TCGA-READ      4918
+## 25   TCGA-TGCT      4217
+## 26   TCGA-THYM      3444
+## 27   TCGA-LAML      3960
+## 28  TARGET-NBL      2795
+## 29    TCGA-ACC      2546
+## 30   TCGA-KICH      2324
+## 31   TCGA-MESO      2330
+## 32  TARGET-AML      2170
+## 33    TCGA-UVM      2179
+## 34    TCGA-UCS      1658
+## 35   TARGET-WT      1406
+## 36   TCGA-DLBC      1330
+## 37   TCGA-CHOL      1348
+## 38   TARGET-OS        47
+## 39   TARGET-RT       174
+## 40 TARGET-CCSK        15</code></pre>
+<p>我们注意到这正是我们需要的，<code>TCGA-OV</code>也是正确的项目id。同时注意这里使用的<code>filter</code>跟<code>dplyr</code>包中的不同。</p>
+<pre class="r"><code>qfiles = files() %&gt;%
+    filter( ~ cases.project.project_id == &#39;TCGA-OV&#39; &amp; type == &#39;gene_expression&#39;)
+str(get_filter(qfiles))
+## List of 2
+##  $ op     : &#39;scalar&#39; chr &quot;and&quot;
+##  $ content:List of 2
+##   ..$ :List of 2
+##   .. ..$ op     : &#39;scalar&#39; chr &quot;=&quot;
+##   .. ..$ content:List of 2
+##   .. .. ..$ field: chr &quot;cases.project.project_id&quot;
+##   .. .. ..$ value: chr &quot;TCGA-OV&quot;
+##   ..$ :List of 2
+##   .. ..$ op     : &#39;scalar&#39; chr &quot;=&quot;
+##   .. ..$ content:List of 2
+##   .. .. ..$ field: chr &quot;type&quot;
+##   .. .. ..$ value: chr &quot;gene_expression&quot;
+qfiles %&gt;% count()
+## [1] 1137</code></pre>
+<p>然后生成manifest进行下载仅需要简单的一步：</p>
+<pre class="r"><code>manifest_df = qfiles %&gt;% manifest()
+head(manifest_df)
+## # A tibble: 6 x 5
+##   id                                   filename      md5        size state
+##   &lt;chr&gt;                                &lt;chr&gt;         &lt;chr&gt;     &lt;int&gt; &lt;chr&gt;
+## 1 567ced20-00cf-46f4-8bb8-a8553eba7f4b b2552f6f-dd1~ 9af0d99~ 258324 live 
+## 2 05692746-1770-47bd-8faa-f864a37e0084 701b8c71-6c0~ 8e9816f~ 526537 live 
+## 3 e2d47640-8565-4383-b2dd-0d3e2762e3da b2552f6f-dd1~ e05190e~ 543367 live 
+## 4 bc6dab72-dc5a-4ca6-aef3-f7242fa8e329 a1c4f19e-079~ 110d8cd~ 253059 live 
+## 5 0a176c20-f3f3-4bc9-bfe2-b2469e745025 01eac123-1e2~ b40921f~ 540592 live 
+## 6 2ae73487-7acf-4282-85d8-927f2ab8f18b 12c8b289-b9d~ 4d3c2b9~ 549437 live</code></pre>
+<p>注意我们可能处理的有些问题。查下文件名，存在很多文件包含“FPKM”, “FPKM-UQ”或 “counts”之类的。所以还需要进行过滤：</p>
+<pre class="r"><code>qfiles = files() %&gt;% filter( ~ cases.project.project_id == &#39;TCGA-OV&#39; &amp;
+                            type == &#39;gene_expression&#39; &amp;
+                            analysis.workflow_type == &#39;HTSeq - Counts&#39;)
+manifest_df = qfiles %&gt;% manifest()
+nrow(manifest_df)
+## [1] 379</code></pre>
+<p>现在可以使用GDC 数据传输工具（在R中使用<code>transfer()</code>或者使用命令行）进行所有文件的下载。查看<a href="bulk-downloads">the bulk downloads section</a>。</p>
+</div>
+</div>
+<div class="section level2">
+<h2>认证</h2>
+<p><a href="https://docs.gdc.cancer.gov/API/Users_Guide/Search_and_Retrieval/#facets">[ GDC 认证 documentation ]</a></p>
+<p>GDC提供控制和开放数据。控制的数据需要获得授权才能下载，请查看<a href="https://gdc.cancer.gov/access-data/obtaining-access-controlled-data">going through the process of obtaining access.</a></p>
+<p>获取控制数据的授权后就可以下载了，首先要拿到一个种子文件（<a href="https://docs.gdc.cancer.gov/Data_Portal/Users_Guide/Authentication/#gdc-authentication-tokens">access a GDC authentication token</a>），然后使用该包进行下载。</p>
+<p>本包使用认证种子下载数据（查看<code>transfer</code> 和 <code>gdcdata</code> 文档），包含一个帮助函数<code>gdc_token</code>，它会用下面三种方式查找（按顺序）种子文件：</p>
+<ol style="list-style-type: decimal">
+<li>字符串，存储为环境变量<code>GDC_TOKEN</code></li>
+<li>文件路径，存为环境变量<code>GDC_TOKEN_FILE</code></li>
+<li>用户家目录下的文件<code>.gdc_token</code></li>
+</ol>
+<p>下面是一个例子：</p>
+<pre class="r"><code>token = gdc_token()
+transfer(...,token=token)
+# 或者
+transfer(...,token=get_token())</code></pre>
+</div>
+<div class="section level2">
+<h2>数据文件获取和下载</h2>
+<div id="gdc-api" class="section level3">
+<h3>通过GDC API进行数据下载</h3>
+<p><code>gdcdata</code>函数以一个或多个文件id的字符串向量作为参数。生成该向量的简单方式就是生成一个<code>manifest</code>数据框，然后传入包含文件id的第一列。</p>
+<pre class="r"><code>fnames = gdcdata(manifest_df$id[1:2],progress=FALSE)</code></pre>
+<p>注意对于控制数据，需要提供种子文件。使用<code>BiocParallel</code>包对与平行下载大量的小文件是非常有用的。</p>
+</div>
+<div class="section level3">
+<h3>大量下载</h3>
+<p>大量下载文件功能仅对下载相对比较大的文件起作用，因此可以用这种方法下载BAM文件或者VCF文件。不然最好用上面说的方法。</p>
+<pre class="r"><code>fnames = gdcdata(manifest_df$id[3:10], access_method = &#39;client&#39;)</code></pre>
+</div>
+<div id="bam-" class="section level3">
+<h3>BAM 切片</h3>
+</div>
+</div>
+<div class="section level2">
+<h2>使用案例</h2>
+</div>
+<div class="section level2">
+<h2>案例</h2>
+<div id="project_id" class="section level3">
+<h3>每个project_id有多少案例？</h3>
+<pre class="r"><code>res = cases() %&gt;% facet(&quot;project.project_id&quot;) %&gt;% aggregations()
+head(res)
+## $project.project_id
+##            key doc_count
+## 1        FM-AD     18004
+## 2   TARGET-NBL      1127
+## 3    TCGA-BRCA      1098
+## 4   TARGET-AML       988
+## 5    TARGET-WT       652
+## 6     TCGA-GBM       617
+## 7      TCGA-OV       608
+## 8    TCGA-LUAD       585
+## 9    TCGA-UCEC       560
+## 10   TCGA-KIRC       537
+## 11   TCGA-HNSC       528
+## 12    TCGA-LGG       516
+## 13   TCGA-THCA       507
+## 14   TCGA-LUSC       504
+## 15   TCGA-PRAD       500
+## 16   TCGA-SKCM       470
+## 17   TCGA-COAD       461
+## 18   TCGA-STAD       443
+## 19   TCGA-BLCA       412
+## 20   TARGET-OS       381
+## 21   TCGA-LIHC       377
+## 22   TCGA-CESC       307
+## 23   TCGA-KIRP       291
+## 24   TCGA-SARC       261
+## 25   TCGA-LAML       200
+## 26   TCGA-ESCA       185
+## 27   TCGA-PAAD       185
+## 28   TCGA-PCPG       179
+## 29   TCGA-READ       172
+## 30   TCGA-TGCT       150
+## 31   TCGA-THYM       124
+## 32   TCGA-KICH       113
+## 33    TCGA-ACC        92
+## 34   TCGA-MESO        87
+## 35    TCGA-UVM        80
+## 36   TARGET-RT        75
+## 37   TCGA-DLBC        58
+## 38    TCGA-UCS        57
+## 39   TCGA-CHOL        51
+## 40 TARGET-CCSK        13
+library(ggplot2)
+ggplot(res$project.project_id,aes(x = key, y = doc_count)) +
+    geom_bar(stat=&#39;identity&#39;) +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1))</code></pre>
+<p><img src="/post/2018-07-13-use-gdc_files/figure-html/casesPerProject-1.png" width="672" /></p>
+</div>
+<div id="target" class="section level3">
+<h3>有多少案例包含在TARGET项目中？</h3>
+<pre class="r"><code>cases() %&gt;% filter(~ project.program.name==&#39;TARGET&#39;) %&gt;% count()
+## [1] 3236</code></pre>
+</div>
+<div id="-how-many-cases-are-included-in-all-tcga-projects" class="section level3">
+<h3>有多少个案例包含在所有项目中？ How many cases are included in all TCGA projects?</h3>
+<pre class="r"><code>cases() %&gt;% filter(~ project.program.name==&#39;TCGA&#39;) %&gt;% count()
+## [1] 11315</code></pre>
+</div>
+<div id="tcga-brca" class="section level3">
+<h3>TCGA-BRCA样本类型?</h3>
+<pre class="r"><code># The need to do the &quot;&amp;&quot; here is a requirement of the
+# current version of the GDC API. I have filed a feature
+# request to remove this requirement.
+resp = cases() %&gt;% filter(~ project.project_id==&#39;TCGA-BRCA&#39; &amp;
+                              project.project_id==&#39;TCGA-BRCA&#39; ) %&gt;%
+    facet(&#39;samples.sample_type&#39;) %&gt;% aggregations()
+resp$samples.sample_type
+##                    key doc_count
+## 1        Primary Tumor      1098
+## 2 Blood Derived Normal      1011
+## 3  Solid Tissue Normal       162
+## 4           Metastatic         7</code></pre>
+</div>
+<div id="tcga-brca" class="section level3">
+<h3>获取TCGA-BRCA所有正常样本</h3>
+<pre class="r"><code># The need to do the &quot;&amp;&quot; here is a requirement of the
+# current version of the GDC API. I have filed a feature
+# request to remove this requirement.
+resp = cases() %&gt;% filter(~ project.project_id==&#39;TCGA-BRCA&#39; &amp;
+                              samples.sample_type==&#39;Solid Tissue Normal&#39;) %&gt;%
+    GenomicDataCommons::select(c(default_fields(cases()),&#39;samples.sample_type&#39;)) %&gt;%
+    response_all()
+count(resp)
+## [1] 162
+res = resp %&gt;% results()
+str(res[1],list.len=6)
+## List of 1
+##  $ updated_datetime: chr [1:162] &quot;2018-05-21T16:07:40.645885-05:00&quot; &quot;2018-05-21T16:07:40.645885-05:00&quot; &quot;2018-05-21T16:07:40.645885-05:00&quot; &quot;2018-05-21T16:07:40.645885-05:00&quot; ...
+head(ids(resp))
+## [1] &quot;6fa2a667-9c36-4526-8a58-1975e863a806&quot;
+## [2] &quot;ef4cbd38-bc79-4d60-a715-647edd2ebe9e&quot;
+## [3] &quot;dd3bfb26-b534-4917-9c4d-9fe7b6477762&quot;
+## [4] &quot;9ddc3e7b-8b54-4a83-8335-8053940f56c1&quot;
+## [5] &quot;f130f376-5801-40f9-975d-a7e2f7b5670d&quot;
+## [6] &quot;af577366-0258-49e7-b6af-e70056c081a4&quot;</code></pre>
+</div>
+</div>
+<div class="section level2">
+<h2>文件</h2>
+<div class="section level3">
+<h3>有多少种可获取信息的文件？</h3>
+<pre class="r"><code>res = files() %&gt;% facet(&#39;type&#39;) %&gt;% aggregations()
+res$type
+##                            key doc_count
+## 1      simple_somatic_mutation     64015
+## 2   annotated_somatic_mutation     63580
+## 3                aligned_reads     45985
+## 4          copy_number_segment     44752
+## 5              gene_expression     34713
+## 6                  slide_image     30036
+## 7       biospecimen_supplement     25151
+## 8             mirna_expression     22976
+## 9          clinical_supplement     12496
+## 10      methylation_beta_value     12359
+## 11 aggregated_somatic_mutation       186
+## 12     masked_somatic_mutation       132
+ggplot(res$type,aes(x = key,y = doc_count)) + geom_bar(stat=&#39;identity&#39;) +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1))</code></pre>
+<p><img src="/post/2018-07-13-use-gdc_files/figure-html/filesVCFCount-1.png" width="672" /></p>
+</div>
+<div id="gbmrna-seq" class="section level3">
+<h3>为GBM查找基因水平的RNA-seq定量文件</h3>
+<pre class="r"><code>q = files() %&gt;%
+    GenomicDataCommons::select(available_fields(&#39;files&#39;)) %&gt;%
+    filter(~ cases.project.project_id==&#39;TCGA-GBM&#39; &amp;
+               data_type==&#39;Gene Expression Quantification&#39;)
+q %&gt;% facet(&#39;analysis.workflow_type&#39;) %&gt;% aggregations()
+## $analysis.workflow_type
+##               key doc_count
+## 1  HTSeq - Counts       174
+## 2    HTSeq - FPKM       174
+## 3 HTSeq - FPKM-UQ       174
+# so need to add another filter
+file_ids = q %&gt;% filter(~ cases.project.project_id==&#39;TCGA-GBM&#39; &amp;
+                            data_type==&#39;Gene Expression Quantification&#39; &amp;
+                            analysis.workflow_type == &#39;HTSeq - Counts&#39;) %&gt;%
+    GenomicDataCommons::select(&#39;file_id&#39;) %&gt;%
+    response_all() %&gt;%
+    ids()</code></pre>
+</div>
+</div>
+<div class="section level2">
+<h2>切片</h2>
+<div id="tcga-bambam" class="section level3">
+<h3>从TCGA-BAM获取所有的BAM文件</h3>
+<pre class="r"><code>q = files() %&gt;%
+    GenomicDataCommons::select(available_fields(&#39;files&#39;)) %&gt;%
+    filter(~ cases.project.project_id == &#39;TCGA-GBM&#39; &amp;
+               data_type == &#39;Aligned Reads&#39; &amp;
+               experimental_strategy == &#39;RNA-Seq&#39; &amp;
+               data_format == &#39;BAM&#39;)
+file_ids = q %&gt;% response_all() %&gt;% ids()</code></pre>
+<pre class="r"><code>bamfile = slicing(file_ids[1],regions=&quot;chr12:6534405-6538375&quot;,token=gdc_token())
+library(GenomicAlignments)
+aligns = readGAlignments(bamfile)</code></pre>
+</div>
+</div>
+<div class="section level2">
+<h2>问题</h2>
+</div>
+<div id="ssl-connection-errors" class="section level2">
+<h2>SSL connection errors</h2>
+<ul>
+<li>Symptom: Trying to connect to the API results in:</li>
+</ul>
+<pre><code>Error in curl::curl_fetch_memory(url, handle = handle) :
+SSL connect error</code></pre>
+<ul>
+<li>Possible solutions: The <a href="http://stackoverflow.com/a/42599546/459633">issue
+is that the GDC supports only recent security Transport Layer Security (TLS)</a>,
+so the only known fix is to upgrade the system <code>openssl</code> to version
+1.0.1 or later.
+<ul>
+<li><a href="https://github.com/Bioconductor/GenomicDataCommons/issues/35#issuecomment-284233510">[Mac OS]</a>,</li>
+<li><a href="http://askubuntu.com/a/434245">[Ubuntu]</a></li>
+<li><a href="https://www.liquidweb.com/kb/update-and-patch-openssl-for-the-ccs-injection-vulnerability/">[Centos/RHEL]</a>.
+After upgrading <code>openssl</code>, reinstall the R <code>curl</code> and <code>httr</code> packages.</li>
+</ul></li>
+</ul>
+</div>
+<div id="sessioninfo" class="section level2">
+<h2>sessionInfo()</h2>
+<pre class="r"><code>sessionInfo()
+## R version 3.5.0 (2018-04-23)
+## Platform: x86_64-w64-mingw32/x64 (64-bit)
+## Running under: Windows 10 x64 (build 17134)
+## 
+## Matrix products: default
+## 
+## locale:
+## [1] LC_COLLATE=Chinese (Simplified)_China.936 
+## [2] LC_CTYPE=Chinese (Simplified)_China.936   
+## [3] LC_MONETARY=Chinese (Simplified)_China.936
+## [4] LC_NUMERIC=C                              
+## [5] LC_TIME=Chinese (Simplified)_China.936    
+## 
+## attached base packages:
+## [1] stats     graphics  grDevices utils     datasets  methods   base     
+## 
+## other attached packages:
+## [1] ggplot2_3.0.0            GenomicDataCommons_1.4.1
+## [3] magrittr_1.5             pacman_0.4.6            
+## 
+## loaded via a namespace (and not attached):
+##  [1] Rcpp_0.12.17                lattice_0.20-35            
+##  [3] assertthat_0.2.0            rprojroot_1.3-2            
+##  [5] digest_0.6.15               utf8_1.1.4                 
+##  [7] R6_2.2.2                    GenomeInfoDb_1.16.0        
+##  [9] plyr_1.8.4                  backports_1.1.2            
+## [11] stats4_3.5.0                evaluate_0.10.1            
+## [13] httr_1.3.1                  blogdown_0.7               
+## [15] pillar_1.2.3                zlibbioc_1.26.0            
+## [17] rlang_0.2.1                 lazyeval_0.2.1             
+## [19] curl_3.2                    S4Vectors_0.18.3           
+## [21] Matrix_1.2-14               rmarkdown_1.10             
+## [23] labeling_0.3                BiocParallel_1.14.2        
+## [25] readr_1.1.1                 stringr_1.3.1              
+## [27] RCurl_1.95-4.10             munsell_0.5.0              
+## [29] DelayedArray_0.6.1          compiler_3.5.0             
+## [31] xfun_0.3                    pkgconfig_2.0.1            
+## [33] BiocGenerics_0.26.0         htmltools_0.3.6            
+## [35] tidyselect_0.2.4            SummarizedExperiment_1.10.1
+## [37] tibble_1.4.2                GenomeInfoDbData_1.1.0     
+## [39] bookdown_0.7                IRanges_2.14.10            
+## [41] matrixStats_0.53.1          crayon_1.3.4               
+## [43] dplyr_0.7.6                 withr_2.1.2                
+## [45] bitops_1.0-6                rappdirs_0.3.1             
+## [47] grid_3.5.0                  jsonlite_1.5               
+## [49] gtable_0.2.0                scales_0.5.0               
+## [51] cli_1.0.0                   stringi_1.2.3              
+## [53] XVector_0.20.0              bindrcpp_0.2.2             
+## [55] xml2_1.2.0                  tools_3.5.0                
+## [57] Biobase_2.40.0              glue_1.2.0                 
+## [59] purrr_0.2.5                 hms_0.4.2                  
+## [61] parallel_3.5.0              yaml_2.1.19                
+## [63] colorspace_1.3-2            GenomicRanges_1.32.3       
+## [65] knitr_1.20                  bindr_0.1.1</code></pre>
+</div>
+<div id="developer-notes" class="section level2">
+<h2>Developer notes</h2>
+<ul>
+<li>The <code>S3</code> object-oriented programming paradigm is used.</li>
+<li>We have adopted a functional programming style with functions and methods that
+often take an “object” as the first argument. This style lends itself to
+pipeline-style programming.</li>
+<li>The GenomicDataCommons package uses the
+<a href="https://docs.gdc.cancer.gov/API/Users_Guide/Search_and_Retrieval/#alternative-request-format">alternative request format (POST)</a>
+to allow very large request bodies.</li>
+</ul>
+</div>
+</div>
+<div class="footnotes">
+<hr />
+<ol>
+<li id="fn1"><p>根据使用查看单个函数详情<a href="#fnref1" class="footnote-back">↩</a></p></li>
+</ol>
+</div>

@@ -7,7 +7,8 @@ categories:
     - R
 tags:
     - TCGA
-    - GenomicDataCommons
+    - GDC
+
 showonlyimage: false
 image: 
 description: 
@@ -25,9 +26,8 @@ options(max.print=200)
 
 >资料来源该包手册。R社区已经有不少下载和处理TCGA数据的包，但目前能获取最新GRch38的应该只有TCGAbiolinks和本包，本包也是TCGA开发的官方R包，值得信赖。 比较麻烦的就是文件，样本ID的转换。
 
-***
 
-# GDC是什么？
+## GDC是什么？
 
 来自官网[Genomic Data Commons (GDC) website](https://gdc.nci.nih.gov/about-gdc)的信息：
 
@@ -129,7 +129,7 @@ clinResults = cases() %>%
 str(clinResults,list.len=10)
 ```
 
-# 基本设计
+## 基本设计
 
 这个包的设计跟`dplyr`的"hadleyverse"方法有点类似。大致上，寻找和获取文件、元数据的函数可以分为：
 
@@ -176,7 +176,7 @@ str(clinResults,list.len=10)
 [^1]: 根据使用查看单个函数详情
 
 
-# 使用
+## 使用
 
 处理NCI GDC是存在两类操作。
 
@@ -431,7 +431,7 @@ fnames = gdcdata(manifest_df$id[3:10], access_method = 'client')
 
 ### BAM 切片
 
-# 使用案例
+## 使用案例
 
 ## 案例
 
@@ -536,7 +536,7 @@ library(GenomicAlignments)
 aligns = readGAlignments(bamfile)
 ```
 
-# 问题
+## 问题
 
 ## SSL connection errors
 
@@ -555,13 +555,13 @@ so the only known fix is to upgrade the system `openssl` to version
     After upgrading `openssl`, reinstall the R `curl` and `httr` packages.
 
 
-# sessionInfo()
+## sessionInfo()
 
 ```{r sessionInfo}
 sessionInfo()
 ```
 
-# Developer notes
+## Developer notes
 
 - The `S3` object-oriented programming paradigm is used.
 - We have adopted a functional programming style with functions and methods that
