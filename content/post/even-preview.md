@@ -7,8 +7,6 @@ tags: ["preview", "Theme preview"]
 categories: ["Demo"]
 author: '<a href="https://laozhu.me" rel="noopener" target="_blank">米老朱</a>'
 
-weight: 10
-
 contentCopyright: '<a href="https://laozhu.me/post/hugo-nuo-post-preview/" rel="noopener" target="_blank">See origin</a>'
 
 ---
