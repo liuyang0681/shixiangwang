@@ -1,5 +1,4 @@
 ---
-draft: yes
 title: "dplyr编程"
 author: 王诗翔
 date: 2018-05-19
@@ -204,7 +203,7 @@ my_summarise(df, quo(g1))
 my_summarise(df, g1)
 ## &lt;quosure&gt;
 ##   expr: ^group_var
-##   env:  000000001D5DE4B8
+##   env:  000000001CDEED20
 ## Error in grouped_df_impl(data, unname(vars), drop): Column `group_var` is unknown</code></pre>
 <p>我使用了<code>print()</code>函数让错误的地方更显而易见，这里的问题是：<code>quo(group_var)</code>总是返回<code>~group_var</code>。而我们想要它替换为<code>~g1</code>。</p>
 <p>类似字符串，我们不想要<code>&quot;&quot;</code>，而是想要一些可以将参数变成字符串的函数。这正是<code>enquo()</code>的工作。<code>enquo()</code>使用一些黑魔法来看待这些参数，查看用户键入了什么，然后将该值返回为<code>quosure</code>（技术上来说，这是可以实现的，因为函数的参数都使用一种特殊的数据结构<strong><code>promise</code></strong>进行执行）。</p>
@@ -391,19 +390,19 @@ x2 &lt;- f(100)</code></pre>
 <pre class="r"><code>x1
 ## &lt;quosure&gt;
 ##   expr: ^x
-##   env:  000000001C1BD328
+##   env:  000000001B9CF2F0
 x2
 ## &lt;quosure&gt;
 ##   expr: ^x
-##   env:  000000001C214570</code></pre>
+##   env:  000000001BA26538</code></pre>
 <p>但是如果你使用<code>rlang::get_env()</code>检查它们的环境——结果是不同的。</p>
 <pre class="r"><code>library(rlang)
 ## Warning: 程辑包&#39;rlang&#39;是用R版本3.5.1 来建造的
 
 get_env(x1)
-## &lt;environment: 0x000000001c1bd328&gt;
+## &lt;environment: 0x000000001b9cf2f0&gt;
 get_env(x2)
-## &lt;environment: 0x000000001c214570&gt;</code></pre>
+## &lt;environment: 0x000000001ba26538&gt;</code></pre>
 <p>进一步，当我们使用<code>rlang::eval_tidy()</code>执行那么公式时，我们可以看到它们会生成不同的值：</p>
 <pre class="r"><code>eval_tidy(x1)
 ## [1] 10

@@ -1,5 +1,4 @@
 ---
-draft: yes
 title: "分析之前——准备数据"
 author: 王诗翔
 date: 2018-06-06
@@ -356,24 +355,24 @@ lattice::make.groups(hat.sizes, pants.sizes, shoe.sizes)
 <p>当对数据框做sample操作时，实际返回的是列的随机抽样结果，而不是行。因为数据框是向量的列表，sample实际抽样的是这个列表的元素。所以要注意一下。</p>
 <p>对于观察结果做行的随机抽样，需要使用sample函数创建一组行号的抽样结果，然后再使用索引选取这些行号所对应的行。比如我们随机抽样<code>batting.2008</code>数据集的5条记录：</p>
 <pre class="r"><code>batting.2008[sample(1:nrow(batting.2008), 5), ]
-##       nameLast nameFirst weight height bats throws      debut birthYear
-## 441      Lidge      Brad    200     77    R      R 2002-04-26      1976
-## 1133 Galarraga   Armando    180     76    R      R 2007-09-15      1982
-## 938      Garza      Matt    185     76    R      R 2006-08-11      1983
-## 922      Owens     Jerry    195     75    L      L 2006-09-11      1981
-## 1204     Dolsi    Freddy    160     72    R      R 2008-05-06      1983
-##       playerID yearID stint teamID lgID  G G_batting AB R H 2B 3B HR RBI
-## 441  lidgebr01   2008     1    PHI   NL 72        71  0 0 0  0  0  0   0
-## 1133 galarar01   2008     1    DET   AL 30         2  2 2 0  0  0  0   0
-## 938  garzama01   2008     1    TBA   AL 30         2  4 0 0  0  0  0   0
-## 922  owensje01   2008     1    CHA   AL 12        12 16 1 4  0  0  0   1
-## 1204 dolsifr01   2008     1    DET   AL 42         4  1 0 0  0  0  0   0
-##      SB CS BB SO IBB HBP SH SF GIDP G_old
-## 441   0  0  0  0   0   0  0  0    0    71
-## 1133  0  0  3  1   0   0  1  0    0     2
-## 938   0  0  1  3   0   0  1  0    0     2
-## 922   2  1  0  4   0   0  1  0    0    12
-## 1204  0  0  0  1   0   0  0  0    0     4</code></pre>
+##        nameLast nameFirst weight height bats throws      debut birthYear
+## 345    Sabathia      C.C.    250     79    L      L 2001-04-08      1980
+## 720    Taschner      Jack    207     75    L      L 2005-06-11      1978
+## 558      Vargas   Claudio    225     75    R      R 2003-04-26      1978
+## 315      Ransom      Cody    190     74    R      R 2001-09-05      1976
+## 447 Hendrickson      Mark    230     81    L      L 2002-08-06      1974
+##      playerID yearID stint teamID lgID  G G_batting AB R  H 2B 3B HR RBI
+## 345 sabatcc01   2008     1    CLE   AL 18         1  3 1  1  0  0  1   1
+## 720 taschja01   2008     1    SFN   NL 67        62  0 0  0  0  0  0   0
+## 558 vargacl01   2008     1    NYN   NL 11        10  8 1  0  0  0  0   0
+## 315 ransoco01   2008     1    NYA   AL 33        33 43 9 13  3  0  4   8
+## 447 hendrma01   2008     1    FLO   NL 37        35 35 4  9  2  1  0   1
+##     SB CS BB SO IBB HBP SH SF GIDP G_old
+## 345  0  0  0  2   0   0  0  0    0     1
+## 720  0  0  0  0   0   0  0  0    0    62
+## 558  0  0  0  6   0   0  1  0    0    10
+## 315  0  0  6 12   0   1  1  0    0    33
+## 447  0  0  1 21   0   0  1  0    0    35</code></pre>
 <p>还可以使用这种技术做更复杂的随机抽样，比如你想要随机统计3个对的情况，可以这样：</p>
 <pre class="r"><code>batting.2008$teamID &lt;- as.factor(batting.2008$teamID)
 levels(batting.2008$teamID)
@@ -383,32 +382,32 @@ levels(batting.2008$teamID)
 
 # 抽样例子
 sample(levels(batting.2008$teamID), 3)
-## [1] &quot;DET&quot; &quot;FLO&quot; &quot;SLN&quot;
+## [1] &quot;CHA&quot; &quot;LAA&quot; &quot;CLE&quot;
 # 使用例子
 batting.2008.3teams &lt;- batting.2008[is.element(batting.2008$teamID, sample(levels(batting.2008$teamID),3)), ]
 batting.2008.3teams
 ##         nameLast nameFirst weight height bats throws      debut birthYear
-## 2           Alou    Moises    190   75.0    R      R 1990-07-26      1966
-## 4       Anderson    Marlon    198   71.0    L      R 1998-09-08      1974
-## 7          Armas      Tony    205   76.0    R      R 1999-08-16      1978
-## 10        Ausmus      Brad    195   71.0    R      R 1993-07-28      1969
-## 21       Beltran    Carlos    190   73.0    B      R 1998-09-14      1977
-## 26       Berkman     Lance    205   73.0    B      L 1999-07-16      1976
+## 14       Barajas       Rod    229   74.0    R      R 1999-09-25      1975
+## 23       Benitez   Armando    180   76.0    R      R 1994-07-28      1972
+## 31        Blanco     Henry    170   71.0    R      R 1997-07-25      1971
+## 43       Buehrle      Mark    200   74.0    L      L 2000-07-16      1979
+## 45       Burnett      A.J.    205   77.0    R      R 1999-08-17      1977
+## 52       Cabrera   Orlando    165   71.0    R      R 1997-09-03      1974
 ##       playerID yearID stint teamID lgID   G G_batting  AB   R   H 2B 3B HR
-## 2     aloumo01   2008     1    NYN   NL  15        15  49   4  17  2  0  0
-## 4    anderma02   2008     1    NYN   NL  87        87 138  16  29  6  0  1
-## 7    armasto02   2008     1    NYN   NL   3         3   3   0   0  0  0  0
-## 10   ausmubr01   2008     1    HOU   NL  81        81 216  15  47  8  0  3
-## 21   beltrca01   2008     1    NYN   NL 161       161 606 116 172 40  5 27
-## 26   berkmla01   2008     1    HOU   NL 159       159 554 114 173 46  4 29
+## 14   barajro01   2008     1    TOR   AL 104       104 349  44  87 23  0 11
+## 23   benitar01   2008     1    TOR   AL   8         1   0   0   0  0  0  0
+## 31   blanche01   2008     1    CHN   NL  58        58 120  15  35  3  0  3
+## 43   buehrma01   2008     1    CHA   AL  34         2   6   0   1  0  0  0
+## 45   burneaj01   2008     1    TOR   AL  35         2   3   0   0  0  0  0
+## 52   cabreor01   2008     1    CHA   AL 161       161 661  93 186 33  1  8
 ##      RBI SB CS BB  SO IBB HBP SH SF GIDP G_old
-## 2      9  1  1  2   4   0   2  0  1    1    15
-## 4     10  2  1  9  27   0   0  2  2    2    87
-## 7      0  0  0  0   0   0   0  0  0    0     3
-## 10    24  0  2 25  41   3   2  6  1    4    81
-## 21   112 25  3 92  96  13   1  1  6   11   161
-## 26   106 18  4 99 108  18   7  0  5   13   159
-## [到达getOption(&quot;max.print&quot;) -- 略过126行]]</code></pre>
+## 14    49  0  0 17  61   0   7  0  4    9   104
+## 23     0  0  0  0   0   0   0  0  0    0     1
+## 31    12  0  0  6  22   1   0  2  0    4    58
+## 43     0  0  0  0   3   0   0  2  0    0     2
+## 45     0  0  0  0   1   0   0  1  0    0     2
+## 52    57 19  6 56  71   1   1  3  9   16   161
+## [到达getOption(&quot;max.print&quot;) -- 略过118行]]</code></pre>
 <p>这个函数对于数据的各种复杂抽样非常方便，但你可能还需要用到更复杂的抽样方式，比如分层抽样、整群抽样、最大熵抽样，这些方法都可以在<code>sampling</code>包中找到。</p>
 </div>
 <div class="section level2">
