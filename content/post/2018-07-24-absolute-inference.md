@@ -11,8 +11,6 @@ tags:
 
 
 
-## ABSOLUTE 推断框架
-
 * 样本混合物中Cancer细胞比例：$\alpha$  (假设单染色体组monogenomic，即有同源SCNAs)
 
 * 样本混合物中Normal细胞比例：$1-\alpha$  （染色体倍性为2）
