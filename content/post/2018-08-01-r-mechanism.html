@@ -50,7 +50,7 @@ test0(-1, stop(&quot;Stop Now!&quot;))
 <p>而本身<code>rnorm</code>执行的时间为：</p>
 <pre class="r"><code>system.time(rnorm(10000000))
 ## 用户 系统 流逝 
-## 0.76 0.00 0.77</code></pre>
+## 0.77 0.02 0.78</code></pre>
 <p>用我的计算机需要超过1秒的时间生成1千万个随机数，而运行<code>test0()</code>函数的消耗几乎为0。由此可见，在需要时再计算可以减少不必要的浪费。也许你会说，1秒算什么，但如果你的程序中循环迭代使用几千上万次这样的运算呢？那可是小时乃至天了。</p>
 <p>但惰性求值也是把双刃剑，<strong>在调用函数时，其参数只被解析而不被计算（使用时才计算），所有我们只能确定参数表达式在语法上是正确的，但很难确定它的有效性。</strong></p>
 <p>如果我们把函数</p>
@@ -97,12 +97,12 @@ x2
 <pre class="r"><code>x1 = c(1, 2, 3)
 x2 = x1
 tracemem(x1)
-## [1] &quot;&lt;000000001C28C9E8&gt;&quot;
+## [1] &quot;&lt;000000001C2B1BB8&gt;&quot;
 tracemem(x2)
-## [1] &quot;&lt;000000001C28C9E8&gt;&quot;</code></pre>
+## [1] &quot;&lt;000000001C2B1BB8&gt;&quot;</code></pre>
 <p><strong>可以发现两个向量值相同，并共享内存地址</strong>，说明它们指向相同的数据，而赋值操作并没有自动复制数据！那么数据是什么时候被复制了呢？</p>
 <pre class="r"><code>x1[1] = 0
-## tracemem[0x000000001c28c9e8 -&gt; 0x000000001c532288]: eval eval withVisible withCallingHandlers handle timing_fn evaluate_call &lt;Anonymous&gt; evaluate in_dir block_exec call_block process_group.block process_group withCallingHandlers process_file &lt;Anonymous&gt; &lt;Anonymous&gt; eval eval eval eval eval.parent local</code></pre>
+## tracemem[0x000000001c2b1bb8 -&gt; 0x000000001c5516f8]: eval eval withVisible withCallingHandlers handle timing_fn evaluate_call &lt;Anonymous&gt; evaluate in_dir block_exec call_block process_group.block process_group withCallingHandlers process_file &lt;Anonymous&gt; &lt;Anonymous&gt; eval eval eval eval eval.parent local</code></pre>
 <p>内存追踪到<code>x1</code>的地址发生了改变。</p>
 <p><strong>如果多个变量指向同一对象，那么修改一个变量会生成该对象的一个副本，这就是复制——修改机制</strong>。</p>
 <p>另外，修改函数的参数和对象属性也会生成一个新的副本以确保外部的对象不受影响。</p>
@@ -204,7 +204,7 @@ fun1(c(4,5,6))
 <pre class="r"><code>e1 = new.env()</code></pre>
 <p><strong>环境通常用十六进制数表示，即内存地址</strong>：</p>
 <pre class="r"><code>e1
-## &lt;environment: 0x0000000017d5f430&gt;</code></pre>
+## &lt;environment: 0x0000000017073758&gt;</code></pre>
 <p>我们可以使用提取操作符<code>$</code>和<code>[[</code>在环境中创建变量，代码看起来像是操作一个列表：</p>
 <pre class="r"><code>e1$x = 1
 e1[[&quot;x&quot;]]
@@ -252,13 +252,13 @@ e1[[&quot;y&quot;]]
 <p>不同的环境有不同的内存地址，这里我们将<code>e1</code>设定为<code>e2</code>的父环境，那么<code>e2</code>的父环境的内存地址应该和<code>e1</code>一致。</p>
 <p>下面进行验证：</p>
 <pre class="r"><code>e2
-## &lt;environment: 0x000000001c687f78&gt;
+## &lt;environment: 0x000000001c68b2e8&gt;
 
 e1
-## &lt;environment: 0x0000000017d5f430&gt;
+## &lt;environment: 0x0000000017073758&gt;
 
 parent.env(e2)
-## &lt;environment: 0x0000000017d5f430&gt;</code></pre>
+## &lt;environment: 0x0000000017073758&gt;</code></pre>
 <p>在<code>e2</code>中创建变量<code>y</code></p>
 <pre class="r"><code>e2$y = 2
 
@@ -283,5 +283,97 @@ get(&quot;x&quot;, e2)
 <pre class="r"><code>get(&quot;x&quot;, e2, inherits = FALSE)
 ## Error in get(&quot;x&quot;, e2, inherits = FALSE): 找不到对象&#39;x&#39;</code></pre>
 <p>环境可以有很多层，形成链一样的存在。在R的背后，环境至关重要，它标明了数据、函数、符号的存储空间，它们相互独立又相互联系。</p>
+<div class="section level4">
+<h4>在引用语义下使用环境</h4>
+<p>引用语义这里是指——<strong>修改环境时不会复制该环境，无论它有多个名称还是作为参数传递给函数</strong>。</p>
+<p>创建变量<code>e3</code>：</p>
+<pre class="r"><code>ls(e1)
+## [1] &quot;x&quot;
+
+e3 = e1</code></pre>
+<p>当我们通过任意一个变量修改环境时，不会创建环境副本。我们这里通过<code>e1</code>和<code>e3</code>观察变化，因为它们指向完全相同的环境。</p>
+<pre class="r"><code>e3$y
+## NULL
+
+e1$y = 2
+
+e3$y
+## [1] 2</code></pre>
+<p>将环境作为参数传递函数也会发生同样情况：</p>
+<pre class="r"><code>modify = function(e){
+    e$z = 10
+}</code></pre>
+<p>如果参数传入的时列表，函数会创建并修改一个局部副本，但该副本在函数调用结束时便丢失：</p>
+<pre class="r"><code>list1 = list(x = 1, y = 2)
+list1$z
+## NULL
+
+modify(list1)
+list1$z
+## NULL</code></pre>
+<p>但如果将环境传入参数，修改环境不会产生局部副本，而是在环境中直接创建新变量<code>z</code>：</p>
+<pre class="r"><code>e1$z
+## NULL
+
+modify(e1)
+
+e1$z
+## [1] 10</code></pre>
+</div>
+<div class="section level4">
+<h4>内置环境</h4>
+<p>环境是R一种特殊类型的对象，前面学习的从函数的调用到词法作用域机制，都是基于环境实现的。<strong>实际上，一段R代码运行就是在一个环境中进行的</strong>。</p>
+<p>要想知道我们是在哪个环境中运行代码，可以调用<code>environment()</code>函数：</p>
+<pre class="r"><code>environment()
+## &lt;environment: R_GlobalEnv&gt;</code></pre>
+<p>结果显示当前是全局环境。<strong>事实上，每一次开启R线程会话，其工作环境都是全局环境</strong>。我们一般是在这个环境中创建变量和函数进行分析。</p>
+<p>因为环境也是对象，所以我们可以将环赋值给变量，并用它创建新的符号：</p>
+<pre class="r"><code>global = environment()
+global$some_obj = 1</code></pre>
+<p>上面代码完全等价于<code>some_obj = 1</code>。</p>
+<p>另有其他方法访问全局环境——<code>globalenv()</code>和<code>.GlobalEnv</code>：</p>
+<pre class="r"><code>globalenv()
+## &lt;environment: R_GlobalEnv&gt;
+
+.GlobalEnv
+## &lt;environment: R_GlobalEnv&gt;</code></pre>
+<p>全局环境提供用户的工作空间，而基础环境<code>baseenv()</code>则提供基础函数和运算符：</p>
+<pre class="r"><code>baseenv()
+## &lt;environment: base&gt;</code></pre>
+<p><strong>全局环境和基础环境是最重要的内置环境</strong>，你可以会对它们所处的环境链感兴趣，我们用以下函数进行寻找：</p>
+<pre class="r"><code>parents = function(env) {
+    while (TRUE) {
+        name = environmentName(env)
+        txt = if (nzchar(name)) name else format(env)
+        cat(txt, &quot;\n&quot;)
+        env = parent.env(env)
+    }
+}</code></pre>
+<p>全局环境链：</p>
+<pre class="r"><code>parents(globalenv())
+## R_GlobalEnv 
+## package:stats 
+## package:graphics 
+## package:grDevices 
+## package:utils 
+## package:datasets 
+## package:pacman 
+## package:methods 
+## Autoloads 
+## base 
+## R_EmptyEnv
+## Error in parent.env(env): 空环境没有父母环境</code></pre>
+<p>因为环境链终止于空环境，所以最后报错了。我们可以使用<code>emptyenv()</code>查看空环境。</p>
+<pre class="r"><code>parents(baseenv())
+## base 
+## R_EmptyEnv
+## Error in parent.env(env): 空环境没有父母环境</code></pre>
+<p><strong>环境链是内置环境和扩展包环境的组合</strong>，使用<code>search()</code>函数可以从全局环境视角获取变量的搜索路径：</p>
+<pre class="r"><code>search()
+##  [1] &quot;.GlobalEnv&quot;        &quot;package:stats&quot;     &quot;package:graphics&quot; 
+##  [4] &quot;package:grDevices&quot; &quot;package:utils&quot;     &quot;package:datasets&quot; 
+##  [7] &quot;package:pacman&quot;    &quot;package:methods&quot;   &quot;Autoloads&quot;        
+## [10] &quot;package:base&quot;</code></pre>
+</div>
 </div>
 </div>
