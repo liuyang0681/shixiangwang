@@ -50,7 +50,7 @@ test0(-1, stop(&quot;Stop Now!&quot;))
 <p>而本身<code>rnorm</code>执行的时间为：</p>
 <pre class="r"><code>system.time(rnorm(10000000))
 ## 用户 系统 流逝 
-## 0.77 0.02 0.78</code></pre>
+## 0.78 0.02 0.80</code></pre>
 <p>用我的计算机需要超过1秒的时间生成1千万个随机数，而运行<code>test0()</code>函数的消耗几乎为0。由此可见，在需要时再计算可以减少不必要的浪费。也许你会说，1秒算什么，但如果你的程序中循环迭代使用几千上万次这样的运算呢？那可是小时乃至天了。</p>
 <p>但惰性求值也是把双刃剑，<strong>在调用函数时，其参数只被解析而不被计算（使用时才计算），所有我们只能确定参数表达式在语法上是正确的，但很难确定它的有效性。</strong></p>
 <p>如果我们把函数</p>
@@ -97,12 +97,12 @@ x2
 <pre class="r"><code>x1 = c(1, 2, 3)
 x2 = x1
 tracemem(x1)
-## [1] &quot;&lt;000000001C2B1BB8&gt;&quot;
+## [1] &quot;&lt;000000001C2A3E30&gt;&quot;
 tracemem(x2)
-## [1] &quot;&lt;000000001C2B1BB8&gt;&quot;</code></pre>
+## [1] &quot;&lt;000000001C2A3E30&gt;&quot;</code></pre>
 <p><strong>可以发现两个向量值相同，并共享内存地址</strong>，说明它们指向相同的数据，而赋值操作并没有自动复制数据！那么数据是什么时候被复制了呢？</p>
 <pre class="r"><code>x1[1] = 0
-## tracemem[0x000000001c2b1bb8 -&gt; 0x000000001c5516f8]: eval eval withVisible withCallingHandlers handle timing_fn evaluate_call &lt;Anonymous&gt; evaluate in_dir block_exec call_block process_group.block process_group withCallingHandlers process_file &lt;Anonymous&gt; &lt;Anonymous&gt; eval eval eval eval eval.parent local</code></pre>
+## tracemem[0x000000001c2a3e30 -&gt; 0x000000001c5496d0]: eval eval withVisible withCallingHandlers handle timing_fn evaluate_call &lt;Anonymous&gt; evaluate in_dir block_exec call_block process_group.block process_group withCallingHandlers process_file &lt;Anonymous&gt; &lt;Anonymous&gt; eval eval eval eval eval.parent local</code></pre>
 <p>内存追踪到<code>x1</code>的地址发生了改变。</p>
 <p><strong>如果多个变量指向同一对象，那么修改一个变量会生成该对象的一个副本，这就是复制——修改机制</strong>。</p>
 <p>另外，修改函数的参数和对象属性也会生成一个新的副本以确保外部的对象不受影响。</p>
@@ -204,7 +204,7 @@ fun1(c(4,5,6))
 <pre class="r"><code>e1 = new.env()</code></pre>
 <p><strong>环境通常用十六进制数表示，即内存地址</strong>：</p>
 <pre class="r"><code>e1
-## &lt;environment: 0x0000000017073758&gt;</code></pre>
+## &lt;environment: 0x0000000016fa6d20&gt;</code></pre>
 <p>我们可以使用提取操作符<code>$</code>和<code>[[</code>在环境中创建变量，代码看起来像是操作一个列表：</p>
 <pre class="r"><code>e1$x = 1
 e1[[&quot;x&quot;]]
@@ -252,13 +252,13 @@ e1[[&quot;y&quot;]]
 <p>不同的环境有不同的内存地址，这里我们将<code>e1</code>设定为<code>e2</code>的父环境，那么<code>e2</code>的父环境的内存地址应该和<code>e1</code>一致。</p>
 <p>下面进行验证：</p>
 <pre class="r"><code>e2
-## &lt;environment: 0x000000001c68b2e8&gt;
+## &lt;environment: 0x000000001c6ade58&gt;
 
 e1
-## &lt;environment: 0x0000000017073758&gt;
+## &lt;environment: 0x0000000016fa6d20&gt;
 
 parent.env(e2)
-## &lt;environment: 0x0000000017073758&gt;</code></pre>
+## &lt;environment: 0x0000000016fa6d20&gt;</code></pre>
 <p>在<code>e2</code>中创建变量<code>y</code></p>
 <pre class="r"><code>e2$y = 2
 
@@ -374,6 +374,99 @@ global$some_obj = 1</code></pre>
 ##  [4] &quot;package:grDevices&quot; &quot;package:utils&quot;     &quot;package:datasets&quot; 
 ##  [7] &quot;package:pacman&quot;    &quot;package:methods&quot;   &quot;Autoloads&quot;        
 ## [10] &quot;package:base&quot;</code></pre>
+<p>我们举例子进行说明：</p>
+<pre class="r"><code>median(c(1, 2, 1+3))
+## [1] 2</code></pre>
+<p>虽然这个计算表达式非常简单，但实际的运行过程却要复杂得多——首先，R在环境链中寻找<code>median()</code>函数，该函数处于<code>stats</code>包环境中，然后再基础环境中找到了<code>c()</code>函数，另外<code>+</code>也是一个函数，它也在基础包环境中。</p>
+<p><strong>事实上，当我们加载一个扩展包，这个包得环境都会插入搜索路径，并位于全局环境之前</strong>。如果需要调用两个包得同名函数，则会优先选取后加载得包中定义得函数，即后添加的包函数会屏蔽掉之前加载包的同名函数，因为后加载的包环境更接近全局环境。</p>
 </div>
+</div>
+<div class="section level3">
+<h3>与函数相关的环境</h3>
+<p>函数环境也会控制符号的查找，有3个与函数及其运行过程相关的重要环境：执行环境、封闭环境以及调用环境。</p>
+<p><strong>每次调用函数时，R会创建一个新的环境来主管函数的执行过程，这就是函数调用的执行环境，函数的参数和在函数中创建的变量实际上是执行环境中的变量</strong>。</p>
+<p>函数的执行环境也有父环境，称为<strong>封闭环境</strong>，即定义函数的环境。这意思是在函数执行时，任何未在执行环境中定义的变量都会到封闭环境中寻找，这正是<strong>词法作用域</strong>的机理。</p>
+<p>有时，了解<strong>调用环境</strong>（调用函数的环境）是很有用的，可以使用<code>parent.frame()</code>来获取当前执行函数的调用环境。</p>
+<p>我们现在用实例进行理解：</p>
+<pre class="r"><code>simple_fun = function() {
+    cat(&quot;Executing environment: &quot;)
+    print(environment())
+    
+    cat(&quot;Enclosing environment: &quot; )
+    print(parent.env(environment()))
+}</code></pre>
+<p>上面这个函数用来输出函该数被调用的执行环境和封闭环境：</p>
+<pre class="r"><code>simple_fun()
+## Executing environment: &lt;environment: 0x000000001cf7c030&gt;
+## Enclosing environment: &lt;environment: R_GlobalEnv&gt;
+
+simple_fun()
+## Executing environment: &lt;environment: 0x000000001cfee358&gt;
+## Enclosing environment: &lt;environment: R_GlobalEnv&gt;
+
+simple_fun()
+## Executing environment: &lt;environment: 0x000000001d211870&gt;
+## Enclosing environment: &lt;environment: R_GlobalEnv&gt;</code></pre>
+<p>每次调用函数时，其执行环境都在变化，但封闭环境是相同的。事实上定义函数时封闭函数已经确认了，我们使用<code>environment()</code>进行查看：</p>
+<pre class="r"><code>environment(simple_fun)
+## &lt;environment: R_GlobalEnv&gt;</code></pre>
+<p>下面的例子涉及3个嵌套函数的3个环境输出：</p>
+<pre class="r"><code>f1 = function() {
+    cat(&quot;[f1] Executing in &quot;)
+    print(environment())
+    cat(&quot;[f1] Enclosed by &quot;)
+    print(parent.env(environment()))
+    cat(&quot;[f1] Calling from &quot;)
+    print(parent.frame())
+    
+    f2 = function() {
+        cat(&quot;[f2] Executing in &quot;)
+        print(environment())
+        cat(&quot;[f2] Enclosed by &quot;)
+        print(parent.env(environment()))
+        cat(&quot;[f2] Calling from &quot;)
+        print(parent.frame())
+
+    }
+    
+    f3 = function() {
+    cat(&quot;[f3] Executing in &quot;)
+    print(environment())
+    cat(&quot;[f3] Enclosed by &quot;)
+    print(parent.env(environment()))
+    cat(&quot;[f3] Calling from &quot;)
+    print(parent.frame())
+            
+    f2()}
+    
+    f3()
+}</code></pre>
+<p>如果你觉得理解了上述3个环境，可以尝试猜一下<code>f1()</code>的输出结果。</p>
+<p>答案如下：</p>
+<pre class="r"><code>f1()
+## [f1] Executing in &lt;environment: 0x000000001d673628&gt;
+## [f1] Enclosed by &lt;environment: R_GlobalEnv&gt;
+## [f1] Calling from &lt;environment: R_GlobalEnv&gt;
+## [f3] Executing in &lt;environment: 0x0000000019a12b78&gt;
+## [f3] Enclosed by &lt;environment: 0x000000001d673628&gt;
+## [f3] Calling from &lt;environment: 0x000000001d673628&gt;
+## [f2] Executing in &lt;environment: 0x0000000019a0d818&gt;
+## [f2] Enclosed by &lt;environment: 0x000000001d673628&gt;
+## [f2] Calling from &lt;environment: 0x0000000019a12b78&gt;</code></pre>
+<p>这些输出结果说明了：</p>
+<ul>
+<li><code>f1()</code>的封闭环境和调用环境都是全局环境</li>
+<li><code>f3()</code>的封闭环境和调用环境<code>f2()</code>的封闭环境和<code>f1()</code>的执行环境相同</li>
+<li><code>f2()</code>的调用环境和<code>f3()</code>的执行环境相同</li>
+</ul>
+<p>简单来说，即</p>
+<ul>
+<li><code>f1()</code>在全局环境中被定义和调用</li>
+<li><code>f3()</code>在<code>f1()</code>中被定义并调用</li>
+<li><code>f2()</code>在<code>f1()</code>中被定义，但在<code>f3()</code>中被调用</li>
+</ul>
+<p>如果想深入学习，推荐<code>Hadley Wickham</code>的《Advance R》一书。</p>
+<hr />
+<p>学习和整理自《R语言编程指南》</p>
 </div>
 </div>
