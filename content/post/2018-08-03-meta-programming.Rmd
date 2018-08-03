@@ -1,0 +1,34 @@
+---
+title: "元编程"
+author: 王诗翔
+date: 2018-08-03
+slug: "meta-programming"
+categories: 
+    - R
+tags:
+    - metaProgramming
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(collapse = TRUE, dev = "png")
+#Sys.setlocale('LC_ALL','C') # Embed this directly in the Rmarkdown script that contains the Chinese character comment
+options(digits=3)
+options(max.print=200)
+```
+
+
+内容：
+
+> * 函数式编程：闭包（closures）与高阶函数（higher-order functions）
+> * 基于语言计算以及语言对象
+> * 非标准计算（non-standard evaluation）
+
+## 函数式编程
+
+我们将学习两种函数：**一种是在函数内部定义的函数，另一种是与其他函数组合使用的函数**。
+
+### 创建和使用闭包
+
+函数内部定义的函数称为闭包（closure）。**闭包的特点是在函数体内，我们可以使用局部参数，也可以使用父环境中的变量**。
+
