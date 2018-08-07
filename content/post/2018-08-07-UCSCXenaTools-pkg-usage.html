@@ -1,0 +1,432 @@
+---
+title: "UCSCXenaTools包用法简介——搜索与下载TCGA、GDC、ICGC等公开数据库数据集"
+author: 王诗翔
+date: 2018-08-07
+slug: "ucsc-xena-tools"
+categories: 
+    - R
+tags:
+    - UCSCXenaTools
+---
+
+
+
+<p><a href="https://github.com/DataGeeker/XenaR">XenaR包</a>提供了一个简单的UCSC Xena接口，可以获取一些UCSC Xena存储的信息，包括GDC、TCGA、ICGC、GTEx、CCLE等数据库的上千个数据集。特别是TCGA（hg19版本）的一部分数据UCSC做了非常好的标准化处理，下载即可用。这几天我想要能够通过代码下载相关数据，而不是每次通过网页上的点点点。考虑到<code>XenaR</code>包的原作者有3年没有更新了，我在它的基础上修正了目前UCSC Xena提供的Hug API，可以完成原包的功能（见<a href="https://github.com/DataGeeker/XenaR" class="uri">https://github.com/DataGeeker/XenaR</a>）。并且，基于这个包，目前正在构建包<a href="https://github.com/ShixiangWang/UCSCXenaTools">UCSCXenaTools</a>。</p>
+<p><a href="https://xenabrowser.net/datapages/">点击查看</a>目前Xena提供的数据集。</p>
+<p>目前可以利用它搜索数据集以及下载和导入R了。下面简单讲解下它的用法，目前没时间写文档，所以使用该包看这篇文章很重要。</p>
+<div class="section level2">
+<h2>使用</h2>
+<div class="section level3">
+<h3>安装</h3>
+<p>从<code>Github</code>上安装，运行下面代码</p>
+<pre class="r"><code>if(!require(devtools)){
+    install.packages(&quot;devtools&quot;, dependencies = TRUE)
+}
+
+devtools::install_github(&quot;ShixiangWang/UCSCXenaTools&quot;)
+</code></pre>
+</div>
+<div class="section level3">
+<h3>导入</h3>
+<pre class="r"><code>library(UCSCXenaTools)</code></pre>
+</div>
+<div class="section level3">
+<h3>探索</h3>
+<p>使用<code>XenaHub()</code>可以获取所有的资源，另外可以通过参数指定感兴趣的，包括<code>hosts</code>，<code>cohorts</code>以及<code>datasets</code>。</p>
+<pre class="r"><code>xe &lt;- XenaHub()
+xe
+## class: XenaHub 
+## hosts():
+##   https://ucscpublic.xenahubs.net
+##   https://tcga.xenahubs.net
+##   https://gdc.xenahubs.net
+##   https://icgc.xenahubs.net
+##   https://toil.xenahubs.net
+## cohorts() (137 total):
+##   (unassigned)
+##   1000_genomes
+##   Acute lymphoblastic leukemia (Mullighan 2008)
+##   ...
+##   TCGA Pan-Cancer (PANCAN)
+##   TCGA TARGET GTEx
+## datasets() (1521 total):
+##   parsons2008cgh_public/parsons2008cgh_genomicMatrix
+##   parsons2008cgh_public/parsons2008cgh_public_clinicalMatrix
+##   vijver2002_public/vijver2002_genomicMatrix
+##   ...
+##   TCGA_survival_data
+##   mc3.v0.2.8.PUBLIC.toil.xena
+head(cohorts(xe))
+## [1] &quot;(unassigned)&quot;                                 
+## [2] &quot;1000_genomes&quot;                                 
+## [3] &quot;Acute lymphoblastic leukemia (Mullighan 2008)&quot;
+## [4] &quot;B cells (Basso 2005)&quot;                         
+## [5] &quot;Breast Cancer (Caldas 2007)&quot;                  
+## [6] &quot;Breast Cancer (Chin 2006)&quot;</code></pre>
+<p>结果返回一个<code>XenaHub</code>对象。</p>
+<p>为了简化<code>hosts()</code>的输入，我们可以使用<code>hostName</code>指定我们想要搜索<code>TCGA</code>的内容，如下：</p>
+<pre class="r"><code>XenaHub(hostName = &quot;TCGA&quot;)
+## class: XenaHub 
+## hosts():
+##   https://tcga.xenahubs.net
+## cohorts() (39 total):
+##   (unassigned)
+##   TCGA Acute Myeloid Leukemia (LAML)
+##   TCGA Adrenocortical Cancer (ACC)
+##   ...
+##   TCGA Thyroid Cancer (THCA)
+##   TCGA Uterine Carcinosarcoma (UCS)
+## datasets() (879 total):
+##   TCGA.OV.sampleMap/HumanMethylation27
+##   TCGA.OV.sampleMap/HumanMethylation450
+##   TCGA.OV.sampleMap/Gistic2_CopyNumber_Gistic2_all_data_by_genes
+##   ...
+##   TCGA.MESO.sampleMap/MESO_clinicalMatrix
+##   TCGA.MESO.sampleMap/Pathway_Paradigm_RNASeq_And_Copy_Number</code></pre>
+<p>有<code>hosts()</code>、<code>cohorts()</code>、<code>datasets()</code>以及<code>samples()</code>函数可以获取对应的内容，输入参数为<code>XenaHub</code>对象。</p>
+<pre class="r"><code>hosts(xe)
+## [1] &quot;https://ucscpublic.xenahubs.net&quot; &quot;https://tcga.xenahubs.net&quot;      
+## [3] &quot;https://gdc.xenahubs.net&quot;        &quot;https://icgc.xenahubs.net&quot;      
+## [5] &quot;https://toil.xenahubs.net&quot;
+cohorts(xe)
+##   [1] &quot;(unassigned)&quot;                                                         
+##   [2] &quot;1000_genomes&quot;                                                         
+##   [3] &quot;Acute lymphoblastic leukemia (Mullighan 2008)&quot;                        
+##   [4] &quot;B cells (Basso 2005)&quot;                                                 
+##   [5] &quot;Breast Cancer (Caldas 2007)&quot;                                          
+##   [6] &quot;Breast Cancer (Chin 2006)&quot;                                            
+##   [7] &quot;Breast Cancer (Haverty 2008)&quot;                                         
+##   [8] &quot;Breast Cancer (Hess 2006)&quot;                                            
+##   [9] &quot;Breast Cancer (Miller 2005)&quot;                                          
+##  [10] &quot;Breast Cancer (vantVeer 2002)&quot;                                        
+##  [11] &quot;Breast Cancer (Vijver 2002)&quot;                                          
+##  [12] &quot;Breast Cancer (Yau 2010)&quot;                                             
+##  [13] &quot;Breast Cancer Cell Lines (Heiser 2012)&quot;                               
+##  [14] &quot;Breast Cancer Cell Lines (Neve 2006)&quot;                                 
+##  [15] &quot;Cancer Cell Line Encyclopedia (Breast)&quot;                               
+##  [16] &quot;Cancer Cell Line Encyclopedia (CCLE)&quot;                                 
+##  [17] &quot;Connectivity Map&quot;                                                     
+##  [18] &quot;DIPG and Pediatric Non-Brainstem High-Grade Glioma (Wu 2014, St Jude)&quot;
+##  [19] &quot;Ewing Sarcoma Family of Tumors (Brohl 2014)&quot;                          
+##  [20] &quot;GBM (Parsons 2008)&quot;                                                   
+##  [21] &quot;Glioma (Kotliarov 2006)&quot;                                              
+##  [22] &quot;Inbred mouse (Cutler 2007)&quot;                                           
+##  [23] &quot;Lung Adenocarcinoma (Ding 2008)&quot;                                      
+##  [24] &quot;Lung Cancer (Raponi 2006)&quot;                                            
+##  [25] &quot;Lung Cancer CGH (Weir 2007)&quot;                                          
+##  [26] &quot;lymph-node-negative breast cancer (Wang 2005)&quot;                        
+##  [27] &quot;MAGIC&quot;                                                                
+##  [28] &quot;Melanoma (Lin 2008)&quot;                                                  
+##  [29] &quot;Mouse and Human Colon Tumors (Kaiser 2007)&quot;                           
+##  [30] &quot;Mouse pancreatic adenocarcinoma (Bardeesy 2006)&quot;                      
+##  [31] &quot;Mouse Tumors (Maser 2007)&quot;                                            
+##  [32] &quot;NCI60&quot;                                                                
+##  [33] &quot;Neuroblastoma (Khan)&quot;                                                 
+##  [34] &quot;Neuroblastoma (Sausen 2013)&quot;                                          
+##  [35] &quot;Node-negative breast cancer (Desmedt 2007)&quot;                           
+##  [36] &quot;Ovarian Cancer (Etemadmoghadam 2009)&quot;                                 
+##  [37] &quot;Pancreatic Cancer (Balagurunathan 2008)&quot;                              
+##  [38] &quot;Pancreatic Cancer (Harada 2008)&quot;                                      
+##  [39] &quot;Pancreatic Cancer (Jones 2008)&quot;                                       
+##  [40] &quot;Pediatric diffuse intrinsic pontine gliomas (Puget 2012)&quot;             
+##  [41] &quot;Pediatric tumor (Khan)&quot;                                               
+##  [42] &quot;POG TCGA TARGET_NBL&quot;                                                  
+##  [43] &quot;Single-cell RNA-seq mouse cortex (Zeisel)&quot;                            
+##  [44] &quot;St Jude PCGP pan-cancer&quot;                                              
+##  [45] &quot;TARGET Acute Lymphoblastic Leukemia&quot;                                  
+##  [46] &quot;TARGET neuroblastoma&quot;                                                 
+##  [47] &quot;(unassigned)&quot;                                                         
+##  [48] &quot;TCGA Acute Myeloid Leukemia (LAML)&quot;                                   
+##  [49] &quot;TCGA Adrenocortical Cancer (ACC)&quot;                                     
+##  [50] &quot;TCGA Bile Duct Cancer (CHOL)&quot;                                         
+##  [51] &quot;TCGA Bladder Cancer (BLCA)&quot;                                           
+##  [52] &quot;TCGA Breast Cancer (BRCA)&quot;                                            
+##  [53] &quot;TCGA Cervical Cancer (CESC)&quot;                                          
+##  [54] &quot;TCGA Colon and Rectal Cancer (COADREAD)&quot;                              
+##  [55] &quot;TCGA Colon Cancer (COAD)&quot;                                             
+##  [56] &quot;TCGA Endometrioid Cancer (UCEC)&quot;                                      
+##  [57] &quot;TCGA Esophageal Cancer (ESCA)&quot;                                        
+##  [58] &quot;TCGA Formalin Fixed Paraffin-Embedded Pilot Phase II (FPPP)&quot;          
+##  [59] &quot;TCGA Glioblastoma (GBM)&quot;                                              
+##  [60] &quot;TCGA Head and Neck Cancer (HNSC)&quot;                                     
+##  [61] &quot;TCGA Kidney Chromophobe (KICH)&quot;                                       
+##  [62] &quot;TCGA Kidney Clear Cell Carcinoma (KIRC)&quot;                              
+##  [63] &quot;TCGA Kidney Papillary Cell Carcinoma (KIRP)&quot;                          
+##  [64] &quot;TCGA Large B-cell Lymphoma (DLBC)&quot;                                    
+##  [65] &quot;TCGA Liver Cancer (LIHC)&quot;                                             
+##  [66] &quot;TCGA Lower Grade Glioma (LGG)&quot;                                        
+##  [67] &quot;TCGA lower grade glioma and glioblastoma (GBMLGG)&quot;                    
+##  [68] &quot;TCGA Lung Adenocarcinoma (LUAD)&quot;                                      
+##  [69] &quot;TCGA Lung Cancer (LUNG)&quot;                                              
+##  [70] &quot;TCGA Lung Squamous Cell Carcinoma (LUSC)&quot;                             
+##  [71] &quot;TCGA Melanoma (SKCM)&quot;                                                 
+##  [72] &quot;TCGA Mesothelioma (MESO)&quot;                                             
+##  [73] &quot;TCGA Ocular melanomas (UVM)&quot;                                          
+##  [74] &quot;TCGA Ovarian Cancer (OV)&quot;                                             
+##  [75] &quot;TCGA Pan-Cancer (PANCAN)&quot;                                             
+##  [76] &quot;TCGA Pancreatic Cancer (PAAD)&quot;                                        
+##  [77] &quot;TCGA Pheochromocytoma &amp; Paraganglioma (PCPG)&quot;                         
+##  [78] &quot;TCGA Prostate Cancer (PRAD)&quot;                                          
+##  [79] &quot;TCGA Rectal Cancer (READ)&quot;                                            
+##  [80] &quot;TCGA Sarcoma (SARC)&quot;                                                  
+##  [81] &quot;TCGA Stomach Cancer (STAD)&quot;                                           
+##  [82] &quot;TCGA Testicular Cancer (TGCT)&quot;                                        
+##  [83] &quot;TCGA Thymoma (THYM)&quot;                                                  
+##  [84] &quot;TCGA Thyroid Cancer (THCA)&quot;                                           
+##  [85] &quot;TCGA Uterine Carcinosarcoma (UCS)&quot;                                    
+##  [86] &quot;(unassigned)&quot;                                                         
+##  [87] &quot;GDC Pan-Cancer (PANCAN)&quot;                                              
+##  [88] &quot;GDC TARGET-AML&quot;                                                       
+##  [89] &quot;GDC TARGET-CCSK&quot;                                                      
+##  [90] &quot;GDC TARGET-NBL&quot;                                                       
+##  [91] &quot;GDC TARGET-OS&quot;                                                        
+##  [92] &quot;GDC TARGET-RT&quot;                                                        
+##  [93] &quot;GDC TARGET-WT&quot;                                                        
+##  [94] &quot;GDC TCGA Acute Myeloid Leukemia (LAML)&quot;                               
+##  [95] &quot;GDC TCGA Adrenocortical Cancer (ACC)&quot;                                 
+##  [96] &quot;GDC TCGA Bile Duct Cancer (CHOL)&quot;                                     
+##  [97] &quot;GDC TCGA Bladder Cancer (BLCA)&quot;                                       
+##  [98] &quot;GDC TCGA Breast Cancer (BRCA)&quot;                                        
+##  [99] &quot;GDC TCGA Cervical Cancer (CESC)&quot;                                      
+## [100] &quot;GDC TCGA Colon Cancer (COAD)&quot;                                         
+## [101] &quot;GDC TCGA Endometrioid Cancer (UCEC)&quot;                                  
+## [102] &quot;GDC TCGA Esophageal Cancer (ESCA)&quot;                                    
+## [103] &quot;GDC TCGA Glioblastoma (GBM)&quot;                                          
+## [104] &quot;GDC TCGA Head and Neck Cancer (HNSC)&quot;                                 
+## [105] &quot;GDC TCGA Kidney Chromophobe (KICH)&quot;                                   
+## [106] &quot;GDC TCGA Kidney Clear Cell Carcinoma (KIRC)&quot;                          
+## [107] &quot;GDC TCGA Kidney Papillary Cell Carcinoma (KIRP)&quot;                      
+## [108] &quot;GDC TCGA Large B-cell Lymphoma (DLBC)&quot;                                
+## [109] &quot;GDC TCGA Liver Cancer (LIHC)&quot;                                         
+## [110] &quot;GDC TCGA Lower Grade Glioma (LGG)&quot;                                    
+## [111] &quot;GDC TCGA Lung Adenocarcinoma (LUAD)&quot;                                  
+## [112] &quot;GDC TCGA Lung Squamous Cell Carcinoma (LUSC)&quot;                         
+## [113] &quot;GDC TCGA Melanoma (SKCM)&quot;                                             
+## [114] &quot;GDC TCGA Mesothelioma (MESO)&quot;                                         
+## [115] &quot;GDC TCGA Ocular melanomas (UVM)&quot;                                      
+## [116] &quot;GDC TCGA Ovarian Cancer (OV)&quot;                                         
+## [117] &quot;GDC TCGA Pancreatic Cancer (PAAD)&quot;                                    
+## [118] &quot;GDC TCGA Pheochromocytoma &amp; Paraganglioma (PCPG)&quot;                     
+## [119] &quot;GDC TCGA Prostate Cancer (PRAD)&quot;                                      
+## [120] &quot;GDC TCGA Rectal Cancer (READ)&quot;                                        
+## [121] &quot;GDC TCGA Sarcoma (SARC)&quot;                                              
+## [122] &quot;GDC TCGA Stomach Cancer (STAD)&quot;                                       
+## [123] &quot;GDC TCGA Testicular Cancer (TGCT)&quot;                                    
+## [124] &quot;GDC TCGA Thymoma (THYM)&quot;                                              
+## [125] &quot;GDC TCGA Thyroid Cancer (THCA)&quot;                                       
+## [126] &quot;GDC TCGA Uterine Carcinosarcoma (UCS)&quot;                                
+## [127] &quot;(unassigned)&quot;                                                         
+## [128] &quot;ICGC (donor centric)&quot;                                                 
+## [129] &quot;ICGC (specimen centric)&quot;                                              
+## [130] &quot;ICGC (US donors with both RNA and SNV data)&quot;                          
+## [131] &quot;PACA-AU&quot;                                                              
+## [132] &quot;(unassigned)&quot;                                                         
+## [133] &quot;GTEX&quot;                                                                 
+## [134] &quot;TARGET Pan-Cancer (PANCAN)&quot;                                           
+## [135] &quot;TCGA and TARGET Pan-Cancer (PANCAN)&quot;                                  
+## [136] &quot;TCGA Pan-Cancer (PANCAN)&quot;                                             
+## [137] &quot;TCGA TARGET GTEx&quot;
+datasets(xe)[1:10]
+##  [1] &quot;parsons2008cgh_public/parsons2008cgh_genomicMatrix&quot;                      
+##  [2] &quot;parsons2008cgh_public/parsons2008cgh_public_clinicalMatrix&quot;              
+##  [3] &quot;vijver2002_public/vijver2002_genomicMatrix&quot;                              
+##  [4] &quot;vijver2002_public/vijver2002_public_clinicalMatrix&quot;                      
+##  [5] &quot;chin2006_public/chin2006Exp_genomicMatrix&quot;                               
+##  [6] &quot;chin2006_public/ucsfChinCGH2006_genomicMatrix&quot;                           
+##  [7] &quot;chin2006_public/chin2006_public_clinicalMatrix&quot;                          
+##  [8] &quot;Treehouse/Treehouse_Khan_neuroblastoma/expression&quot;                       
+##  [9] &quot;Treehouse/Treehouse_Khan_neuroblastoma/neuroblastoma_affy_clinicalMatrix&quot;
+## [10] &quot;Treehouse/NBL_Sausen_et_al_2013_SNV.tsv&quot;
+# samples(xe)[1:10]
+# 关于samples的用法请查看 &lt;https://github.com/DataGeeker/XenaR/blob/master/inst/README.Rmd&gt;
+# 这里输出内容太多，也不是该包的主题</code></pre>
+</div>
+<div class="section level3">
+<h3>下载与导入数据</h3>
+<p>为了能够自定义下载所需要的数据，该包提供了<code>XenaQuery</code>、<code>XenaDownload</code>与<code>XenaPrepare</code>3连击。</p>
+<p>下面以下载和导入<code>TCGA</code>临床数据为例进行说明，其他数据类似。</p>
+<div id="filter" class="section level4">
+<h4>filter</h4>
+<p>查看感兴趣的数据集</p>
+<pre class="r"><code>xe = XenaHub(hostName = &quot;TCGA&quot;)
+xe
+## class: XenaHub 
+## hosts():
+##   https://tcga.xenahubs.net
+## cohorts() (39 total):
+##   (unassigned)
+##   TCGA Acute Myeloid Leukemia (LAML)
+##   TCGA Adrenocortical Cancer (ACC)
+##   ...
+##   TCGA Thyroid Cancer (THCA)
+##   TCGA Uterine Carcinosarcoma (UCS)
+## datasets() (879 total):
+##   TCGA.OV.sampleMap/HumanMethylation27
+##   TCGA.OV.sampleMap/HumanMethylation450
+##   TCGA.OV.sampleMap/Gistic2_CopyNumber_Gistic2_all_data_by_genes
+##   ...
+##   TCGA.MESO.sampleMap/MESO_clinicalMatrix
+##   TCGA.MESO.sampleMap/Pathway_Paradigm_RNASeq_And_Copy_Number</code></pre>
+<p>可以看到有800+个数据集，太多了。下面使用<code>filterXena()</code>函数进行过滤。用户可以使用全名或者正则表达式。</p>
+<pre class="r"><code>(filterXena(xe, filterDatasets = &quot;clinical&quot;) -&gt; xe2)
+## class: XenaHub 
+## hosts():
+##   https://tcga.xenahubs.net
+## cohorts() (39 total):
+##   (unassigned)
+##   TCGA Acute Myeloid Leukemia (LAML)
+##   TCGA Adrenocortical Cancer (ACC)
+##   ...
+##   TCGA Thyroid Cancer (THCA)
+##   TCGA Uterine Carcinosarcoma (UCS)
+## datasets() (37 total):
+##   TCGA.OV.sampleMap/OV_clinicalMatrix
+##   TCGA.DLBC.sampleMap/DLBC_clinicalMatrix
+##   TCGA.KIRC.sampleMap/KIRC_clinicalMatrix
+##   ...
+##   TCGA.READ.sampleMap/READ_clinicalMatrix
+##   TCGA.MESO.sampleMap/MESO_clinicalMatrix</code></pre>
+<p>不是很多了吧？注意该函数的两个参数<code>filterCohorts</code>与<code>filterDatasets</code>是相互独立的，因为核心的<code>XenaR</code>并没有其中一者变化，另外也跟着变化的功能。后续我会想其他办法解决。不过呢，这里因为我们主要聚焦数据集的下载和使用，<code>cohorts</code>可以不管。</p>
+<pre class="r"><code>datasets(xe2)
+##  [1] &quot;TCGA.OV.sampleMap/OV_clinicalMatrix&quot;            
+##  [2] &quot;TCGA.DLBC.sampleMap/DLBC_clinicalMatrix&quot;        
+##  [3] &quot;TCGA.KIRC.sampleMap/KIRC_clinicalMatrix&quot;        
+##  [4] &quot;TCGA.SARC.sampleMap/SARC_clinicalMatrix&quot;        
+##  [5] &quot;TCGA.COAD.sampleMap/COAD_clinicalMatrix&quot;        
+##  [6] &quot;TCGA.PRAD.sampleMap/PRAD_clinicalMatrix&quot;        
+##  [7] &quot;TCGA.LUSC.sampleMap/LUSC_clinicalMatrix&quot;        
+##  [8] &quot;TCGA.ACC.sampleMap/ACC_clinicalMatrix&quot;          
+##  [9] &quot;TCGA.KICH.sampleMap/KICH_clinicalMatrix&quot;        
+## [10] &quot;TCGA.UCS.sampleMap/UCS_clinicalMatrix&quot;          
+## [11] &quot;TCGA.COADREAD.sampleMap/COADREAD_clinicalMatrix&quot;
+## [12] &quot;TCGA.LUNG.sampleMap/LUNG_clinicalMatrix&quot;        
+## [13] &quot;TCGA.LUAD.sampleMap/LUAD_clinicalMatrix&quot;        
+## [14] &quot;TCGA.FPPP.sampleMap/FPPP_clinicalMatrix&quot;        
+## [15] &quot;TCGA.LAML.sampleMap/LAML_clinicalMatrix&quot;        
+## [16] &quot;TCGA.GBM.sampleMap/GBM_clinicalMatrix&quot;          
+## [17] &quot;TCGA.KIRP.sampleMap/KIRP_clinicalMatrix&quot;        
+## [18] &quot;TCGA.PAAD.sampleMap/PAAD_clinicalMatrix&quot;        
+## [19] &quot;TCGA.CHOL.sampleMap/CHOL_clinicalMatrix&quot;        
+## [20] &quot;TCGA.CESC.sampleMap/CESC_clinicalMatrix&quot;        
+## [21] &quot;TCGA.SKCM.sampleMap/SKCM_clinicalMatrix&quot;        
+## [22] &quot;TCGA.LGG.sampleMap/LGG_clinicalMatrix&quot;          
+## [23] &quot;TCGA.PCPG.sampleMap/PCPG_clinicalMatrix&quot;        
+## [24] &quot;TCGA.TGCT.sampleMap/TGCT_clinicalMatrix&quot;        
+## [25] &quot;TCGA.BLCA.sampleMap/BLCA_clinicalMatrix&quot;        
+## [26] &quot;TCGA.THYM.sampleMap/THYM_clinicalMatrix&quot;        
+## [27] &quot;TCGA.BRCA.sampleMap/BRCA_clinicalMatrix&quot;        
+## [28] &quot;TCGA.UVM.sampleMap/UVM_clinicalMatrix&quot;          
+## [29] &quot;TCGA.UCEC.sampleMap/UCEC_clinicalMatrix&quot;        
+## [30] &quot;TCGA.LIHC.sampleMap/LIHC_clinicalMatrix&quot;        
+## [31] &quot;TCGA.GBMLGG.sampleMap/GBMLGG_clinicalMatrix&quot;    
+## [32] &quot;TCGA.THCA.sampleMap/THCA_clinicalMatrix&quot;        
+## [33] &quot;TCGA.HNSC.sampleMap/HNSC_clinicalMatrix&quot;        
+## [34] &quot;TCGA.ESCA.sampleMap/ESCA_clinicalMatrix&quot;        
+## [35] &quot;TCGA.STAD.sampleMap/STAD_clinicalMatrix&quot;        
+## [36] &quot;TCGA.READ.sampleMap/READ_clinicalMatrix&quot;        
+## [37] &quot;TCGA.MESO.sampleMap/MESO_clinicalMatrix&quot;</code></pre>
+<p>我只想选择肺癌相关，所以再加一些条件：</p>
+<pre class="r"><code>(filterXena(xe2, filterDatasets = &quot;LUAD|LUSC|LUNG&quot;)) -&gt; xe2</code></pre>
+<p>如果你很清楚你想要做的，可以使用<code>dplyr</code>的管道操作符进行连续过滤，不然建议一步一步挑选。</p>
+<pre class="r"><code>suppressMessages(require(dplyr))
+## Warning: 程辑包&#39;dplyr&#39;是用R版本3.5.1 来建造的
+xe %&gt;% 
+    filterXena(filterDatasets = &quot;clinical&quot;) %&gt;% 
+    filterXena(filterDatasets = &quot;luad|lusc|lung&quot;)
+## class: XenaHub 
+## hosts():
+##   https://tcga.xenahubs.net
+## cohorts() (39 total):
+##   (unassigned)
+##   TCGA Acute Myeloid Leukemia (LAML)
+##   TCGA Adrenocortical Cancer (ACC)
+##   ...
+##   TCGA Thyroid Cancer (THCA)
+##   TCGA Uterine Carcinosarcoma (UCS)
+## datasets() (3 total):
+##   TCGA.LUSC.sampleMap/LUSC_clinicalMatrix
+##   TCGA.LUNG.sampleMap/LUNG_clinicalMatrix
+##   TCGA.LUAD.sampleMap/LUAD_clinicalMatrix</code></pre>
+<p>过滤后返回的还是<code>XenaHub</code>对象。</p>
+</div>
+<div id="query" class="section level4">
+<h4>query</h4>
+<p>接下来我们准备下载这3个选择好的数据集。</p>
+<p>先构建一个query对象（当前还没有用类封装），就是一个数据框。存储了主机地址，下载的<code>url</code>等。</p>
+<pre class="r"><code>xe2_query = XenaQuery(xe2)
+
+xe2_query
+##                       hosts                                datasets
+## 1 https://tcga.xenahubs.net TCGA.LUSC.sampleMap/LUSC_clinicalMatrix
+## 2 https://tcga.xenahubs.net TCGA.LUNG.sampleMap/LUNG_clinicalMatrix
+## 3 https://tcga.xenahubs.net TCGA.LUAD.sampleMap/LUAD_clinicalMatrix
+##                                                                             url
+## 1 https://tcga.xenahubs.net/download/TCGA.LUSC.sampleMap/LUSC_clinicalMatrix.gz
+## 2 https://tcga.xenahubs.net/download/TCGA.LUNG.sampleMap/LUNG_clinicalMatrix.gz
+## 3 https://tcga.xenahubs.net/download/TCGA.LUAD.sampleMap/LUAD_clinicalMatrix.gz</code></pre>
+</div>
+<div id="download" class="section level4">
+<h4>download</h4>
+<p>默认<code>XenaDownload</code>函数将下载数据到当前目录的<code>Xena_Data</code>目录下，如果数据已经下载，将提示并不会下载，可以使用<code>force=TRUE</code>强制下载，另外支持一些到<code>download.file</code>函数的参数。</p>
+<p>注意该函数有返回项，可以用于后续数据的导入。</p>
+<pre class="r"><code>xe2_download = XenaDownload(xe2_query, destdir = &quot;E:/Github/XenaData/test/&quot;)
+## We will download files to directory E:/Github/XenaData/test/.
+## E:/Github/XenaData/test//TCGA.LUSC.sampleMap__LUSC_clinicalMatrix.gz, the file has been download!
+## E:/Github/XenaData/test//TCGA.LUNG.sampleMap__LUNG_clinicalMatrix.gz, the file has been download!
+## E:/Github/XenaData/test//TCGA.LUAD.sampleMap__LUAD_clinicalMatrix.gz, the file has been download!
+## Note fileNames transfromed from datasets name and / chracter all changed to __ character.</code></pre>
+</div>
+<div id="prepare" class="section level4">
+<h4>prepare</h4>
+<p>数据下载之后就可以将数据导入R，背后用的是<code>readr</code>包的<code>read_tsv</code>函数。</p>
+<p>支持4种导入方式，大于1个文件就会生成一个列表：</p>
+<ul>
+<li>指定本地目录（目录下所有文件都会导入）</li>
+<li>指定本地文件</li>
+<li>指定url，如果只是少量文件，我们可以直接指定url导入，这一步不需要先下载数据到本地（但不推荐）</li>
+<li>指定<code>XenaDownload</code>函数返回的对象</li>
+</ul>
+<p>方式1：</p>
+<pre class="r"><code># way1:  directory
+cli1 = XenaPrepare(&quot;E:/Github/XenaData/test/&quot;)
+names(cli1)
+## [1] &quot;TCGA.LUAD.sampleMap__LUAD_clinicalMatrix.gz&quot;
+## [2] &quot;TCGA.LUNG.sampleMap__LUNG_clinicalMatrix.gz&quot;
+## [3] &quot;TCGA.LUSC.sampleMap__LUSC_clinicalMatrix.gz&quot;</code></pre>
+<p>方式2：</p>
+<pre class="r"><code># way2: local files
+cli2 = XenaPrepare(&quot;E:/Github/XenaData/test/TCGA.LUAD.sampleMap__LUAD_clinicalMatrix.gz&quot;)
+class(cli2)
+## [1] &quot;tbl_df&quot;     &quot;tbl&quot;        &quot;data.frame&quot;
+
+cli2 = XenaPrepare(c(&quot;E:/Github/XenaData/test/TCGA.LUAD.sampleMap__LUAD_clinicalMatrix.gz&quot;,
+                     &quot;E:/Github/XenaData/test/TCGA.LUNG.sampleMap__LUNG_clinicalMatrix.gz&quot;))
+class(cli2)
+## [1] &quot;list&quot;
+names(cli2)
+## [1] &quot;TCGA.LUAD.sampleMap__LUAD_clinicalMatrix.gz&quot;
+## [2] &quot;TCGA.LUNG.sampleMap__LUNG_clinicalMatrix.gz&quot;</code></pre>
+<p>方式3：</p>
+<pre class="r"><code># way3: urls
+cli3 = XenaPrepare(xe2_download$url[1:2])
+names(cli3)
+## [1] &quot;LUSC_clinicalMatrix.gz&quot; &quot;LUNG_clinicalMatrix.gz&quot;</code></pre>
+<p>方式4：</p>
+<pre class="r"><code># way4: xenadownload object
+cli4 = XenaPrepare(xe2_download)
+names(cli4)
+## [1] &quot;TCGA.LUSC.sampleMap__LUSC_clinicalMatrix.gz&quot;
+## [2] &quot;TCGA.LUNG.sampleMap__LUNG_clinicalMatrix.gz&quot;
+## [3] &quot;TCGA.LUAD.sampleMap__LUAD_clinicalMatrix.gz&quot;</code></pre>
+</div>
+</div>
+</div>
+<div class="section level2">
+<h2>许可证</h2>
+<p>GPL-3</p>
+</div>
+<div class="section level2">
+<h2>进一步</h2>
+<p>查找感兴趣的数据集、下载数据是这个包的核心。除了修复Bug，后续会尝试开发一些更快速运行，支持<code>hosts</code>、<code>cohorts</code>和<code>datasets</code>同步变化的功能，另外增加数据下载后的探索与分析。</p>
+<p>欢迎使用、关注、Star与提问。</p>
+</div>

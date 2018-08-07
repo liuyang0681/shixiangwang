@@ -1,0 +1,202 @@
+---
+title: "UCSCXenaTools包用法简介——搜索与下载TCGA、GDC、ICGC等公开数据库数据集"
+author: 王诗翔
+date: 2018-08-07
+slug: "ucsc-xena-tools"
+categories: 
+    - R
+tags:
+    - UCSCXenaTools
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(collapse = TRUE, dev = "png")
+#Sys.setlocale('LC_ALL','C') # Embed this directly in the Rmarkdown script that contains the Chinese character comment
+options(digits=3)
+options(max.print=200)
+```
+
+[XenaR包](https://github.com/DataGeeker/XenaR)提供了一个简单的UCSC Xena接口，可以获取一些UCSC Xena存储的信息，包括GDC、TCGA、ICGC、GTEx、CCLE等数据库的上千个数据集。特别是TCGA（hg19版本）的一部分数据UCSC做了非常好的标准化处理，下载即可用。这几天我想要能够通过代码下载相关数据，而不是每次通过网页上的点点点。考虑到`XenaR`包的原作者有3年没有更新了，我在它的基础上修正了目前UCSC Xena提供的Hug API，可以完成原包的功能（见<https://github.com/DataGeeker/XenaR>）。并且，基于这个包，目前正在构建包[UCSCXenaTools](https://github.com/ShixiangWang/UCSCXenaTools)。
+
+[点击查看](https://xenabrowser.net/datapages/)目前Xena提供的数据集。
+
+目前可以利用它搜索数据集以及下载和导入R了。下面简单讲解下它的用法，目前没时间写文档，所以使用该包看这篇文章很重要。
+
+## 使用
+
+### 安装
+
+从`Github`上安装，运行下面代码
+
+```{r,eval=FALSE}
+if(!require(devtools)){
+    install.packages("devtools", dependencies = TRUE)
+}
+
+devtools::install_github("ShixiangWang/UCSCXenaTools")
+
+```
+
+### 导入
+
+```{r}
+library(UCSCXenaTools)
+```
+
+
+### 探索
+
+使用`XenaHub()`可以获取所有的资源，另外可以通过参数指定感兴趣的，包括`hosts`，`cohorts`以及`datasets`。
+
+```{r discovery}
+xe <- XenaHub()
+xe
+head(cohorts(xe))
+```
+
+结果返回一个`XenaHub`对象。
+
+为了简化`hosts()`的输入，我们可以使用`hostName`指定我们想要搜索`TCGA`的内容，如下：
+
+```{r}
+XenaHub(hostName = "TCGA")
+```
+
+有`hosts()`、`cohorts()`、`datasets()`以及`samples()`函数可以获取对应的内容，输入参数为`XenaHub`对象。
+
+```{r}
+hosts(xe)
+cohorts(xe)
+datasets(xe)[1:10]
+# samples(xe)[1:10]
+# 关于samples的用法请查看 <https://github.com/DataGeeker/XenaR/blob/master/inst/README.Rmd>
+# 这里输出内容太多，也不是该包的主题
+```
+
+### 下载与导入数据
+
+为了能够自定义下载所需要的数据，该包提供了`XenaQuery`、`XenaDownload`与`XenaPrepare`3连击。
+
+下面以下载和导入`TCGA`临床数据为例进行说明，其他数据类似。
+
+#### filter
+
+查看感兴趣的数据集
+
+```{r}
+xe = XenaHub(hostName = "TCGA")
+xe
+```
+
+可以看到有800+个数据集，太多了。下面使用`filterXena()`函数进行过滤。用户可以使用全名或者正则表达式。
+
+```{r}
+(filterXena(xe, filterDatasets = "clinical") -> xe2)
+```
+
+不是很多了吧？注意该函数的两个参数`filterCohorts`与`filterDatasets`是相互独立的，因为核心的`XenaR`并没有其中一者变化，另外也跟着变化的功能。后续我会想其他办法解决。不过呢，这里因为我们主要聚焦数据集的下载和使用，`cohorts`可以不管。
+
+```{r}
+datasets(xe2)
+```
+
+我只想选择肺癌相关，所以再加一些条件：
+
+```{r}
+(filterXena(xe2, filterDatasets = "LUAD|LUSC|LUNG")) -> xe2
+```
+
+如果你很清楚你想要做的，可以使用`dplyr`的管道操作符进行连续过滤，不然建议一步一步挑选。
+
+```{r}
+suppressMessages(require(dplyr))
+xe %>% 
+    filterXena(filterDatasets = "clinical") %>% 
+    filterXena(filterDatasets = "luad|lusc|lung")
+```
+
+过滤后返回的还是`XenaHub`对象。
+
+
+#### query
+
+接下来我们准备下载这3个选择好的数据集。
+
+先构建一个query对象（当前还没有用类封装），就是一个数据框。存储了主机地址，下载的`url`等。
+
+```{r}
+xe2_query = XenaQuery(xe2)
+
+xe2_query
+```
+
+#### download
+
+默认`XenaDownload`函数将下载数据到当前目录的`Xena_Data`目录下，如果数据已经下载，将提示并不会下载，可以使用`force=TRUE`强制下载，另外支持一些到`download.file`函数的参数。
+
+注意该函数有返回项，可以用于后续数据的导入。
+
+```{r}
+xe2_download = XenaDownload(xe2_query, destdir = "E:/Github/XenaData/test/")
+```
+
+#### prepare
+
+数据下载之后就可以将数据导入R，背后用的是`readr`包的`read_tsv`函数。
+
+支持4种导入方式，大于1个文件就会生成一个列表：
+
+* 指定本地目录（目录下所有文件都会导入）
+* 指定本地文件
+* 指定url，如果只是少量文件，我们可以直接指定url导入，这一步不需要先下载数据到本地（但不推荐）
+* 指定`XenaDownload`函数返回的对象
+
+方式1：
+
+```{r}
+# way1:  directory
+cli1 = XenaPrepare("E:/Github/XenaData/test/")
+names(cli1)
+```
+
+
+方式2：
+
+```{r}
+# way2: local files
+cli2 = XenaPrepare("E:/Github/XenaData/test/TCGA.LUAD.sampleMap__LUAD_clinicalMatrix.gz")
+class(cli2)
+
+cli2 = XenaPrepare(c("E:/Github/XenaData/test/TCGA.LUAD.sampleMap__LUAD_clinicalMatrix.gz",
+                     "E:/Github/XenaData/test/TCGA.LUNG.sampleMap__LUNG_clinicalMatrix.gz"))
+class(cli2)
+names(cli2)
+```
+
+方式3：
+
+```{r}
+# way3: urls
+cli3 = XenaPrepare(xe2_download$url[1:2])
+names(cli3)
+```
+
+方式4：
+
+```{r}
+# way4: xenadownload object
+cli4 = XenaPrepare(xe2_download)
+names(cli4)
+```
+
+
+## 许可证
+
+GPL-3
+
+## 进一步
+
+查找感兴趣的数据集、下载数据是这个包的核心。除了修复Bug，后续会尝试开发一些更快速运行，支持`hosts`、`cohorts`和`datasets`同步变化的功能，另外增加数据下载后的探索与分析。
+
+欢迎使用、关注、Star与提问。
