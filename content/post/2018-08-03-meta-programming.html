@@ -56,7 +56,7 @@ add1
 ## function(x){
 ##         x + y
 ##     }
-## &lt;environment: 0x000000001943f7e0&gt;</code></pre>
+## &lt;environment: 0x0000000019552f30&gt;</code></pre>
 <p>比较上面两条语句可以发现，<code>add1</code>与<code>add</code>函数不同，输出结果附带了<code>add1</code>的环境。<strong>这是因为一个函数不在当前环境（例子中为全局环境）下，那么输出该函数就会一并显示其所属的环境</strong>。在<code>add1</code>的环境中，<code>y是在addn(1)</code>确定的，下面可以证实：</p>
 <pre class="r"><code>environment(add1)$y
 ## [1] 1</code></pre>
@@ -112,8 +112,8 @@ fit = stats4::mle(nloglik(data),
                   lower = c(-5, 0.01), upper = c(5, 10))</code></pre>
 <p>结果返回一个<code>S4</code>对象：</p>
 <pre class="r"><code>fit@coef
-## mean   sd 
-## 1.03 1.99</code></pre>
+##  mean    sd 
+## 0.971 2.003</code></pre>
 <p>可以看到，估计值非常接近真实值。下面使用图形展示这一点。</p>
 <pre class="r"><code>hist(data, freq = FALSE, ylim = c(0, 0.25))
 curve(dnorm(x, 1, 2), add = TRUE, col = rgb(1, 0, 0, 0.5), lwd = 6)
@@ -206,18 +206,18 @@ combine(product, 3, 4, 5)
 <p>当我们在交互式控制台键入表达式并按下<code>Enter</code>后，R便会执行并输出结果。</p>
 <p>例如：</p>
 <pre class="r"><code>rnorm(5)
-## [1] -0.2648 -0.0447  0.2190  2.9760  0.3550</code></pre>
+## [1] -0.463 -1.065  0.773  0.597 -1.384</code></pre>
 <p><code>subset()</code>神奇之处在于它调整了参数被计算的环境，分两步完成，<strong>首先捕获表达式，然后调整表达式的计算</strong>。</p>
 <div class="section level4">
 <h4>将表达式捕获为语言对象</h4>
 <p><strong>捕获表达式意味着防止表达式被执行，而将表达式本身存储为变量的形式</strong>。具有这个功能的函数为<code>quote()</code>：</p>
-<pre class="r"><code>call = quote(rnorm(5))
-call
+<pre class="r"><code>call1 = quote(rnorm(5))
+call1
 ## rnorm(5)</code></pre>
 <p>上述代码返回代码本身而不是表达式执行的结果，我们可以使用<code>typeof()</code>和<code>class()</code>观察返回的对象：</p>
-<pre class="r"><code>typeof(call)
+<pre class="r"><code>typeof(call1)
 ## [1] &quot;language&quot;
-class(call)
+class(call1)
 ## [1] &quot;call&quot;</code></pre>
 <p><code>call</code>本质上是一个语言对象，并且是一个函数调用。我们还可以在<code>quote()</code>中写函数名：</p>
 <pre class="r"><code>name1 = quote(rnorm)
@@ -236,6 +236,341 @@ class(name1)
 quote(xfun(a = 1:n))
 ## xfun(a = 1:n)</code></pre>
 <p>理解变量和符号对象的区别，以及函数和调用对象的区别非常重要。变量是对象的名称，而符号对象是名称本身。函数是可以被调用的对象，而调用对象是不会被计算的，它表示这个函数调用的语言对象。</p>
+<p>上面这段话你初听可能理解不了，我来举例说明。</p>
+<p>我们常说变量，有时候是说这个变量的名字，有时候是说变量的内容。比如变量<code>a=3</code>，<code>a</code>是变量<code>a</code>的名字，但我们有时说<code>a</code>的内容<code>3</code>是也会说成<code>a</code>。我们执行<code>a=3</code>时是将内容3赋值给了符号<code>a</code>，形成了变量<code>a</code>。</p>
+<p>此处，变量是<code>a</code>，是数字对象<code>3</code>的名称，而符号是<code>a</code>本身，它也是一个对象！</p>
+<p>函数理解起来就简单些了，比如我们调用函数<code>min()</code>并不是说计算<code>min()</code>本身，而是计算它指向的一个表达式集合！</p>
+<p><strong>概念可以不懂，但要会用，有自己的理解。</strong></p>
+<p>将调用对象转换为列表，查看它的结构：</p>
+<pre class="r"><code>as.list(call1)
+## [[1]]
+## rnorm
+## 
+## [[2]]
+## [1] 5</code></pre>
+<p>结果说明这个调用由<strong>函数符号</strong>和<strong>一个参数</strong>两部分组成。我们可以分别提取它们：</p>
+<pre class="r"><code>call1[[1]]
+## rnorm
+
+typeof(call1[[1]])
+## [1] &quot;symbol&quot;
+
+class(call1[[1]])
+## [1] &quot;name&quot;</code></pre>
+<p><code>call1</code>第一个元素是符号。</p>
+<pre class="r"><code>call1[[2]]
+## [1] 5
+
+typeof(call1[[2]])
+## [1] &quot;double&quot;
+
+class(call1[[2]])
+## [1] &quot;numeric&quot;</code></pre>
+<p>第二个元素是数值。</p>
+<p><strong><code>quote()</code>将变量名捕获为符号对象，将函数调用捕获为调用对象，两者都是语言对象</strong>。我们可以使用<code>is.symbol()/is.name()</code>和<code>is.call()</code>检查它们。更一般，使用<code>is.language()</code>同时检查符号和调用。</p>
+<p>如果我们捕获的对象既不是符号，也不是函数，而是变量存储的内容，像数字、字符串等会发生什么呢？</p>
+<pre class="r"><code>num1 = 100
+num2 = quote(100)
+
+str1 = &quot;abc&quot;
+str2 = quote(&quot;abc&quot;)</code></pre>
+<p>检查：</p>
+<pre class="r"><code>identical(num1, num2)
+## [1] TRUE
+
+identical(str1, str2)
+## [1] TRUE</code></pre>
+<p>可见<code>quote()</code>不会将字面值（数字、逻辑值、字符）等转换为语言对象。</p>
+<p>但是，<strong>由它们组合而成的向量表达式会被转换为语言对象</strong>：</p>
+<pre class="r"><code>call2 = quote(c(&quot;a&quot;, &quot;b&quot;))
+call2
+## c(&quot;a&quot;, &quot;b&quot;)</code></pre>
+<p>因为<code>c()</code>是函数!</p>
+<pre class="r"><code>as.list(call2)
+## [[1]]
+## c
+## 
+## [[2]]
+## [1] &quot;a&quot;
+## 
+## [[3]]
+## [1] &quot;b&quot;</code></pre>
+<pre class="r"><code>str(as.list(call2))
+## List of 3
+##  $ : symbol c
+##  $ : chr &quot;a&quot;
+##  $ : chr &quot;b&quot;</code></pre>
+<p>同理，像<code>+</code>，<code>-</code>，<code>*</code>，<code>/</code>这样的算术表达式都会被转换，因为它们本质都是函数！</p>
+<pre class="r"><code>call3 = quote(sqrt(1 + x ^ 2))
+call3
+## sqrt(1 + x^2)</code></pre>
+<p>我们使用<code>pryr</code>包查看函数调用的递归结构：</p>
+<pre class="r"><code>p_load(pryr)
+pryr::call_tree(call3)
+## \- ()
+##   \- `sqrt
+##   \- ()
+##     \- `+
+##     \-  1
+##     \- ()
+##       \- `^
+##       \- `x
+##       \-  2</code></pre>
+<p>上面<code>\-()</code>运算符指调用，<code>\</code>var`指符号对象，其他是字面值。</p>
+</div>
+<div class="section level4">
+<h4>修改表达式</h4>
+<p>一旦表达式被捕获为调用对象（符号、调用），我们可以把它们当作列表进行修改。</p>
+<pre class="r"><code>call1
+## rnorm(5)
+
+call1[[1]] = quote(runif)
+call1
+## runif(5)</code></pre>
+<p>这样<code>rnorm(5)</code>被修改为<code>runif(5)</code>。</p>
+<p>还可以在调用中添加新参数：</p>
+<pre class="r"><code>call1[[3]] = -1
+names(call1)[[3]] = &quot;min&quot;
+call1
+## runif(5, min = -1)</code></pre>
+</div>
+<div class="section level4">
+<h4>捕获函数参数表达式</h4>
+<p>前面我们使用<code>quote()</code>捕获一个已知的表达式，而<code>substitute()</code>可以作用于任意的用户输入表达式。</p>
+<p>假设我们想要捕获参数<code>x</code>的表达式，首先我们想到用<code>quote()</code>：</p>
+<pre class="r"><code>fun1 = function(x){
+    quote(x)
+}</code></pre>
+<p>测试：</p>
+<pre class="r"><code>fun1(rnorm(5))
+## x</code></pre>
+<p>显然，<code>quote(x)</code>捕获的是表达式<code>x</code>，而不是输入表达式<code>rnorm(5)</code>。下面使用<code>substitute()</code>：</p>
+<pre class="r"><code>fun2 = function(x){
+    substitute(x)
+}
+
+fun2(rnorm(5))
+## rnorm(5)</code></pre>
+<p>下面用两个实例延时使用语言对象或者字面值列表作为参数，<code>substitute()</code>的运行方式：</p>
+<pre class="r"><code>substitute(x + y + x ^2, list(x = 1))
+## 1 + y + 1^2
+
+substitute(f(x + f(y)), list(f = quote(sin)))
+## sin(x + sin(y))
+
+substitute(x, list(x = quote(rnorm(5))))
+## rnorm(5)</code></pre>
+<p>因此，**使用<code>quote()</code>捕获表达式，使用<code>substitute()</code>捕获用户输入的表达式。</p>
+</div>
+<div class="section level4">
+<h4>创建函数调用</h4>
+<p>除了捕获表达式，我们还可以使用内置函数创建语言对象。</p>
+<pre class="r"><code>call1 = quote(rnorm(5, mean = 3))
+call1
+## rnorm(5, mean = 3)</code></pre>
+<p>使用<code>call()</code>创建相同的函数调用：</p>
+<pre class="r"><code>call2 = call(&quot;rnorm&quot;, 5, mean = 3)
+call2
+## rnorm(5, mean = 3)</code></pre>
+<p>还可以使用<code>as.call()</code>将一个调用列表转换为调用：</p>
+<pre class="r"><code>call3 = as.call(list(quote(rnorm), 5, mean = 3))
+call3
+## rnorm(5, mean = 3)</code></pre>
+<p>上面3种方式完全相同。</p>
+</div>
+</div>
+<div class="section level3">
+<h3>执行表达式</h3>
+<p>前面学习了表达式的捕获，下一步就是求值！<code>eval()</code>函数可以完成这个工作。</p>
+<p>如果在R console键入<code>sin(1)</code>按下回车键会马上返回结果：</p>
+<pre class="r"><code>sin(1)
+## [1] 0.841</code></pre>
+<p>如果想要控制它的计算，我们先使用<code>quote()</code>捕获表达式，然后使用<code>eval()</code>计算：</p>
+<pre class="r"><code>call1 = quote(sin(1))
+call1
+## sin(1)
+
+eval(call1)
+## [1] 0.841</code></pre>
+<p>到此，我们可以捕获任意语法正确的表达式，根据需要修改，并后续执行。</p>
+<p>注意，如果表达式计算时需要的变量值不存在，会报错：</p>
+<pre class="r"><code>call2 = quote(sin(x))
+call2
+## sin(x)</code></pre>
+<p>计算：</p>
+<pre class="r"><code>eval(call2)
+## Error in eval(call2): 找不到对象&#39;x&#39;</code></pre>
+<p><strong>直接在控制台运行和使用<code>eval()</code>的区别在于，<code>eval()</code>允许我们提供一个列表来计算给定表达式。我们并不需要创建一个变量<code>x</code>，只要提供一个包含<code>x</code>的临时列表，表达式会在列表中搜索符号</strong>：</p>
+<pre class="r"><code>eval(call2, list(x = 1))
+## [1] 0.841</code></pre>
+<p><strong>或者，我们也可以在<code>eval()</code>中添加一个搜索符号的环境</strong>。下面创建一个新环境试试：</p>
+<pre class="r"><code>e1 = new.env()
+e1$x = 1
+eval(call2, e1)
+## [1] 0.841</code></pre>
+<p><code>eval(expr, envir, enclos)</code>计算模式与调用函数相同，函数体为<code>expr</code>，执行环境为<code>envir</code>。如果<code>envir</code>以列表形式给出，封闭环境便是<code>enclos</code>，否则，封闭环境是<code>envir</code>的父环境。</p>
+<pre class="r"><code>call3 = quote(x ^ 2 + y ^ 2)
+call3
+## x^2 + y^2</code></pre>
+<pre class="r"><code>e1 = new.env()
+e1$x = 2
+eval(call3, e1)
+## Error in eval(call3, e1): 找不到对象&#39;y&#39;</code></pre>
+<pre class="r"><code>e2 = new.env(parent = e1)
+e2$y = 3
+eval(call3, e2)
+## [1] 13</code></pre>
+</div>
+<div class="section level3">
+<h3>非标准计算</h3>
+<p>前面一节学习的几个函数组成了R元编程的基本能力，让我们能调整标准计算。元编程的主要应用是执行非标准计算以使某些特定用法更容易。下面讨论几个例子来实际理解它和应用它。</p>
+<div class="section level4">
+<h4>使用非标准计算快速构建子集</h4>
+<p>我们经常需要从向量中取出某个子集。现在假设有一个整数向量，我们想提取第3个到倒数第5个。</p>
+<p>标准方法：</p>
+<pre class="r"><code>x = 1:10
+x[3:(length(x)-5)]
+## [1] 3 4 5</code></pre>
+<p>上面表达式使用了2次<code>x</code>，看起来有些繁琐。</p>
+<p>我们可以定义一个快速提取子集的函数，使用元编程工具提供一个特殊符号来引用输入向量的长度。</p>
+<p>下面是该功能的简单实现，使用<code>.</code>来表示输入向量的长度：</p>
+<pre class="r"><code>qs = function(x, range){
+    range = substitute(range)
+    selector = eval(range, list(. = length(x)))
+    x[selector]
+}</code></pre>
+<p>现在我们可以使用<code>3:(.-5)</code>表示相同地范围：</p>
+<pre class="r"><code>qs(x, 3:(. -5))
+## [1] 3 4 5</code></pre>
+<p>还可以使用倒序的方式提取元素：</p>
+<pre class="r"><code>qs(x, . -1)
+## [1] 9</code></pre>
+<p>基于<code>qs()</code>，下面函数用于剔除向量<code>x</code>的前<code>n</code>个和后<code>n</code>个元素：</p>
+<pre class="r"><code>trim_margin = function(x, n){
+    qs(x, (n + 1):(. -n - 1))
+}</code></pre>
+<p>这个函数看起来没问题，但使用时发生了错误：</p>
+<pre class="r"><code>trim_margin(x, 3)
+## Error in eval(range, list(. = length(x))): 找不到对象&#39;n&#39;</code></pre>
+<p>为什么会找不到<code>n</code>呢？我们有必要分析该函数调用时符号的查找路径。</p>
+</div>
+<div class="section level4">
+<h4>动态作用域</h4>
+<p>错误发生在<code>eval()</code>语句上，此处找不到数<code>n</code>。这一定是封闭环境发生了问题，我们检查函数<code>eval()</code>：</p>
+<pre class="r"><code>eval
+## function (expr, envir = parent.frame(), enclos = if (is.list(envir) || 
+##     is.pairlist(envir)) parent.frame() else baseenv()) 
+## .Internal(eval(expr, envir, enclos))
+## &lt;bytecode: 0x00000000045225a0&gt;
+## &lt;environment: namespace:base&gt;</code></pre>
+<p>从定义上看，当提供一个列表时，<code>enclos</code>会取默认值<code>parent.frame()</code>，而<strong>这是<code>eval()</code>的调用环境</strong>（不是<code>qs()</code>的，也就是调用<code>qs()</code>时的执行环境，该环境中没有<code>n</code>。</p>
+<p>这里我们可以发现<code>substitute()</code>的缺点，它只捕获表达式，而不捕获表达式有意义的环境（这正是quosure的由来吧，就是为了解决这问题）。我们需要自己完成这一步。</p>
+<p>既然知道问题所在，解决就简单了。我们只需要指定环境为<code>qs()</code>的调用环境：</p>
+<pre class="r"><code>qs = function(x, range){
+    range = substitute(range)
+    selector = eval(range, list(. = length(x)), parent.frame())
+    x[selector]
+}</code></pre>
+<p>重新测试：</p>
+<pre class="r"><code>trim_margin(x, 3)
+## [1] 4 5 6</code></pre>
+<p>这个机制就是<strong>动态作用域</strong>，每次调用函数时都会创建一个执行环境，如果一个符号在执行环境中找不到，就会取封闭环境中搜索。<strong>在标准计算中，函数的封闭环境在函数被定义时就已经确定，而在非标准计算中，封闭环境应该是调用环境</strong>（这一点是不确定的）。因此，<strong>当函数使用非标准计算时，正确实现动态作用域机制非常重要</strong>。</p>
+</div>
+<div class="section level4">
+<h4>使用公式捕获表达式和环境</h4>
+<p><strong>为了正确实现动态作用域机制，我们使用<code>parent.frame()</code>追踪<code>substitute()</code>捕获的表达式，一个更简单地办法是使用公式同时捕获表达式和环境</strong>。</p>
+<p>公式对象会自动不会<code>~</code>符号两边的表达式以及创建它的环境。我们可以直接创建一个公式并存储在变量中：</p>
+<pre class="r"><code>formula1 = z ~ x ^ 2 + y ^ 2</code></pre>
+<p>公式实质上是属于<code>formula</code>类的语言对象：</p>
+<pre class="r"><code>typeof(formula1)
+## [1] &quot;language&quot;
+class(formula1)
+## [1] &quot;formula&quot;</code></pre>
+<p>我们依旧将它转换为列表，查看结构：</p>
+<pre class="r"><code>str(as.list(formula1))
+## List of 3
+##  $ : symbol ~
+##  $ : symbol z
+##  $ : language x^2 + y^2
+##  - attr(*, &quot;class&quot;)= chr &quot;formula&quot;
+##  - attr(*, &quot;.Environment&quot;)=&lt;environment: R_GlobalEnv&gt;</code></pre>
+<p><strong>可以看到<code>formula1</code>不仅将<code>~</code>两侧的表达式捕获为语言对象，还捕获了创建它的环境。</strong>实际上，公式就是一个基于被捕获参数和调用环境的函数<code>~</code>调用。</p>
+<p>我们可以像之前那样用列表的方式提取元素：</p>
+<pre class="r"><code>formula1[[2]]
+## z
+formula1[[3]]
+## x^2 + y^2</code></pre>
+<p>访问调用环境：</p>
+<pre class="r"><code>environment(formula1)
+## &lt;environment: R_GlobalEnv&gt;</code></pre>
+<p>公式也可以是右侧型的：</p>
+<pre class="r"><code>formula2 = ~ x + y
+str(as.list(formula2))
+## List of 2
+##  $ : symbol ~
+##  $ : language x + y
+##  - attr(*, &quot;class&quot;)= chr &quot;formula&quot;
+##  - attr(*, &quot;.Environment&quot;)=&lt;environment: R_GlobalEnv&gt;</code></pre>
+<p>下面我们使用公式实现<code>qs()</code>与<code>trim_margin()</code>的另一个版本。</p>
+<p><strong>当<code>range</code>是一个公式时，函数<code>qs2()</code>与<code>qs()</code>运行方式一致；否则它直接用<code>range</code>提取<code>x</code>子集</strong>。</p>
+<pre class="r"><code>qs2 = function(x, range){
+    selector = if (inherits(range, &quot;formula&quot;)) {
+        eval(range[[2]], list(. = length(x)), environment(range))
+    }else range
+    
+    x[selector]
+}</code></pre>
+<p>我们使用<code>inherits()</code>检查<code>range</code>是不是一个公式，使用<code>environment(range)</code>实现动态作用域。然后用右侧型公式激活非标准计算：</p>
+<pre class="r"><code>qs2(1:10, ~3:(. -2))
+## [1] 3 4 5 6 7 8</code></pre>
+<p>或者使用标准计算：</p>
+<pre class="r"><code>qs2(1:10, 3)
+## [1] 3</code></pre>
+<p>我们再借助公式版<code>qs2()</code>实现<code>trim_margin()</code>：</p>
+<pre class="r"><code>trim_margin2 = function(x, n){
+    qs2(x, ~ (n+1):(.-n -1))
+}</code></pre>
+<p>测试：</p>
+<pre class="r"><code>trim_margin2(x, 3)
+## [1] 4 5 6</code></pre>
+</div>
+<div class="section level4">
+<h4>使用元编程构建子集</h4>
+<p>了解前面的语言对象、求值函数以及动态作用域机制后，现在来实现<code>subset</code>的另一个版本。</p>
+<p>基本想法：</p>
+<ul>
+<li>捕获行构建子集表达式，并在数据框内对其求值，数据框本质上是列表</li>
+<li>捕获按列选取的表达式，并在整数索引的命名列表中对其求值</li>
+<li>使用<strong>行选择器（逻辑向量）和列选择器（整数向量）</strong>对数据框选取子集</li>
+</ul>
+<pre class="r"><code>subset2 = function(x, subset = TRUE, select = TRUE){
+    enclos = parent.frame()
+    subset = substitute(subset)
+    select = substitute(select)
+    
+    row_selector = eval(subset, x, enclos)
+    col_envir = as.list(seq_along(x))
+    names(col_envir) = colnames(x)
+    col_selector = eval(select, col_envir, enclos)
+    
+    x[row_selector, col_selector]
+}</code></pre>
+<p><strong>按行构建子集比按列更容易实现。按行我们只需要捕获<code>subset</code>并在数据框内对其求值即可。</strong></p>
+<p><strong>按列我们首先要给列创建一个整数索引列表，并给它们赋予相应的名称</strong>。例如，一个具有3列（x,y,z）的数据框需要这样一个索引列表：<code>list(a = 1, b = 2, c = 3)</code>，这样让我们能够以<code>select = c(x, y)</code>的形式选取列，因为<code>c(x, y)</code>是在列表内被计算的。</p>
+<p>下面测试使用：</p>
+<pre class="r"><code>subset2(mtcars, mpg &gt;= quantile(mpg, 0.9), c(mpg, cyl, qsec))
+##                 mpg cyl qsec
+## Fiat 128       32.4   4 19.5
+## Honda Civic    30.4   4 18.5
+## Toyota Corolla 33.9   4 19.9
+## Lotus Europa   30.4   4 16.9</code></pre>
+<p>以及<code>:</code>符号的使用：</p>
+<pre class="r"><code>subset2(mtcars, mpg &gt;= quantile(mpg, 0.9), mpg:drat)
+##                 mpg cyl disp  hp drat
+## Fiat 128       32.4   4 78.7  66 4.08
+## Honda Civic    30.4   4 75.7  52 4.93
+## Toyota Corolla 33.9   4 71.1  65 4.22
+## Lotus Europa   30.4   4 95.1 113 3.77</code></pre>
 </div>
 </div>
 </div>
