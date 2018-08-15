@@ -1,0 +1,165 @@
+---
+title: "R-面向对象编程"
+author: 王诗翔
+date: 2018-08-15
+slug: "high-level-OOP"
+categories: 
+    - R
+tags:
+    - class
+    - instance
+    - S3
+    - S4
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(collapse = TRUE, dev = "png", comment = "#>")
+#Sys.setlocale('LC_ALL','C') # Embed this directly in the Rmarkdown script that contains the Chinese character comment
+options(digits=3)
+options(max.print=200)
+```
+
+>内容：
+>
+>* S3
+>* S4
+>* 引用类（Reference class, RC）
+>* R6扩展包
+
+**借助面向对象的编码风格，并加以合理的抽象，我们可以简单地模仿对象的重要特性，于是，问题和模型之间的转换就变得清晰自然**。
+
+## S3对象
+
+**S3对象系统是一个简单且宽松的面向对象系统**。每个基本对象的类型都有一个S3类名称。比如`integer`,`numeric`, `character`, `logical`, `list`和`data.frame`都属于S3类。
+
+举例，下面`vec1`类型是`double`，意味其内部类型或者说存储模式是双精度浮点型数字。但它的类是`numeric`。
+
+```{r}
+vec1 = c(1, 2, 3)
+typeof(vec1)
+class(vec1)
+```
+
+下面`data1`类型是`list`，意味`data1`的内部类型或者存储模式是列表，但它的S3类是`data.frame`。
+
+```{r}
+data1 = data.frame(x = 1:3, y = rnorm(3))
+
+typeof(data1)
+
+class(data1)
+```
+
+理解对象的**内部类型**与**S3类**区别是一个重点。
+
+一个类可以用多种方法定义它的行为，尤其是它与其他类的关系。在S3系统中，我们可以创建**泛型函数（generic function）**，对于不同的类，由泛型函数决定调用哪个方法，这就是**S3方法分派（method dispatch）**的工作机理。
+
+对象的类不同，其方法分派不同，因此，区别对象的类十分重要。
+
+R中有许多基于某个通用目的定义的S3泛型函数，我们先看看`head()`与`tail()`。`head()`展示一个数据对象的前n条记录，`tail()`展示后n条。这跟`x[1:n]`是不同的，因为对不同的类的对象，记录的定义是不同的。对原子向量（数值、字符向量等），前n条记录指前n个元素。但对于数据框，前n条记录指前n行而不是前n列。
+
+查看下`head`的函数内部信息：
+
+```{r}
+head
+```
+
+我们发现函数中并没有实际的操作细节。它调用`UseMethod("head")`来让**泛型函数**`head()`执行方法分派，也就是说，对于不同的类，它可能有不同的执行方式（过程）。
+
+```{r}
+num_vec = c(1, 2, 3, 4, 5)
+data_frame = data.frame(x = 1:5, y = rnorm(5))
+```
+
+调用函数：
+
+```{r}
+head(num_vec, 3)
+head(data_frame, 3)
+```
+
+我们可以使用`methods()`查看`head()`函数可以实现的所有方法：
+
+```{r}
+methods("head")
+```
+
+可以看到`head`不仅仅适用于向量和数据框。
+
+**注意**，方法都是以`method.class`形式表示，如果我们输入一个`data.frame`，`head()`会调用`head.data.frame`方法。当没有方法可以匹配对象的类时，函数会自动转向`method.default`方法。这就是**方法分派**的一个实际过程。
+
+
+### 内置类和方法
+
+**S3泛型函数和方法在统一各个模型的使用方式上是最有用的**。比如我们可以创建一个线性模型，以不同角度查看模型信息：
+
+```{r}
+lm1 = lm(mpg ~ cyl + vs, data = mtcars)
+```
+
+**线性模型本质上是由模型拟合产生的数据字段构成的列表**，所以`lm1`的类型是`list`，但是它的类是`lm`，因此泛型函数根据`lm`选择方法：
+
+```{r}
+typeof(lm1)
+
+class(lm1)
+```
+
+甚至没有明确调用S3泛型函数时，S3方法分派也会自动进行。如果我们输入`lm1`：
+
+```{r}
+lm1
+```
+
+实际上，`print()`函数被默默地调用了：
+
+```{r}
+print(lm1)
+```
+
+为什么打印出来的不像列表呢？因为`print()`是一个泛型函数，它为`lm`选择了一个方法来打印线性模型最重要的信息。我们可以调用`getS3method("print", "lm")`获取实际使用的方法与想象的进行验证：
+
+```{r}
+identical(getS3method("print", "lm"), stats:::print.lm)
+```
+
+`print()`展示模型的一个简要版本，`summary()`展示更详细的信息。`summary()`也是一个泛型函数，它为模型的所有类提供了许多方法：
+
+```{r}
+summary(lm1)
+```
+
+实际上，`summary()`的输出结果也是一个对象，包含的数据都可以被访问。在这个例子里，这个对象是一个列表，是`summary.lm`类，它有可供`print()`选择的自己的方法：
+
+```{r}
+lm1summary = summary(lm1)
+typeof(lm1summary)
+
+class(lm1summary)
+```
+
+查看列表成分：
+
+```{r}
+names(lm1summary)
+```
+
+还有一些其他有用的且与模型相关的泛型函数，例如`plot()`,`predict()`。不同的内置模型和第三方扩展包提供的模型都能实现这些泛型函数。
+
+举例，我们可以对线性模型调用`plot()`函数：
+
+```{r}
+oldpar = par(mfrow = c(2, 2))
+plot(lm1)
+par(oldpar)
+```
+
+为避免依次生成这4个图，我们用`par()`将绘图区域划分为2x2的子区域。
+
+利用`predict()`我们可以使用模型对新数据进行预测，泛型函数`predict()`自动选择正确的方法用新数据进行预测：
+
+```{r}
+predict(lm1, data.frame(cyl = c(6, 8), vs = c(1, 1)))
+```
+

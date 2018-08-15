@@ -1,0 +1,148 @@
+---
+title: "R-面向对象编程"
+author: 王诗翔
+date: 2018-08-15
+slug: "high-level-OOP"
+categories: 
+    - R
+tags:
+    - class
+    - instance
+    - S3
+    - S4
+---
+
+
+
+<blockquote>
+<p>内容：</p>
+<ul>
+<li>S3</li>
+<li>S4</li>
+<li>引用类（Reference class, RC）</li>
+<li>R6扩展包</li>
+</ul>
+</blockquote>
+<p><strong>借助面向对象的编码风格，并加以合理的抽象，我们可以简单地模仿对象的重要特性，于是，问题和模型之间的转换就变得清晰自然</strong>。</p>
+<div id="s3" class="section level2">
+<h2>S3对象</h2>
+<p><strong>S3对象系统是一个简单且宽松的面向对象系统</strong>。每个基本对象的类型都有一个S3类名称。比如<code>integer</code>,<code>numeric</code>, <code>character</code>, <code>logical</code>, <code>list</code>和<code>data.frame</code>都属于S3类。</p>
+<p>举例，下面<code>vec1</code>类型是<code>double</code>，意味其内部类型或者说存储模式是双精度浮点型数字。但它的类是<code>numeric</code>。</p>
+<pre class="r"><code>vec1 = c(1, 2, 3)
+typeof(vec1)
+#&gt; [1] &quot;double&quot;
+class(vec1)
+#&gt; [1] &quot;numeric&quot;</code></pre>
+<p>下面<code>data1</code>类型是<code>list</code>，意味<code>data1</code>的内部类型或者存储模式是列表，但它的S3类是<code>data.frame</code>。</p>
+<pre class="r"><code>data1 = data.frame(x = 1:3, y = rnorm(3))
+
+typeof(data1)
+#&gt; [1] &quot;list&quot;
+
+class(data1)
+#&gt; [1] &quot;data.frame&quot;</code></pre>
+<p>理解对象的<strong>内部类型</strong>与<strong>S3类</strong>区别是一个重点。</p>
+<p>一个类可以用多种方法定义它的行为，尤其是它与其他类的关系。在S3系统中，我们可以创建<strong>泛型函数（generic function）</strong>，对于不同的类，由泛型函数决定调用哪个方法，这就是<strong>S3方法分派（method dispatch）</strong>的工作机理。</p>
+<p>对象的类不同，其方法分派不同，因此，区别对象的类十分重要。</p>
+<p>R中有许多基于某个通用目的定义的S3泛型函数，我们先看看<code>head()</code>与<code>tail()</code>。<code>head()</code>展示一个数据对象的前n条记录，<code>tail()</code>展示后n条。这跟<code>x[1:n]</code>是不同的，因为对不同的类的对象，记录的定义是不同的。对原子向量（数值、字符向量等），前n条记录指前n个元素。但对于数据框，前n条记录指前n行而不是前n列。</p>
+<p>查看下<code>head</code>的函数内部信息：</p>
+<pre class="r"><code>head
+#&gt; function (x, ...) 
+#&gt; UseMethod(&quot;head&quot;)
+#&gt; &lt;bytecode: 0x000000001869af60&gt;
+#&gt; &lt;environment: namespace:utils&gt;</code></pre>
+<p>我们发现函数中并没有实际的操作细节。它调用<code>UseMethod(&quot;head&quot;)</code>来让<strong>泛型函数</strong><code>head()</code>执行方法分派，也就是说，对于不同的类，它可能有不同的执行方式（过程）。</p>
+<pre class="r"><code>num_vec = c(1, 2, 3, 4, 5)
+data_frame = data.frame(x = 1:5, y = rnorm(5))</code></pre>
+<p>调用函数：</p>
+<pre class="r"><code>head(num_vec, 3)
+#&gt; [1] 1 2 3
+head(data_frame, 3)
+#&gt;   x      y
+#&gt; 1 1 -0.210
+#&gt; 2 2  0.413
+#&gt; 3 3 -0.916</code></pre>
+<p>我们可以使用<code>methods()</code>查看<code>head()</code>函数可以实现的所有方法：</p>
+<pre class="r"><code>methods(&quot;head&quot;)
+#&gt; [1] head.data.frame* head.default*    head.ftable*     head.function*  
+#&gt; [5] head.matrix      head.table*     
+#&gt; see &#39;?methods&#39; for accessing help and source code</code></pre>
+<p>可以看到<code>head</code>不仅仅适用于向量和数据框。</p>
+<p><strong>注意</strong>，方法都是以<code>method.class</code>形式表示，如果我们输入一个<code>data.frame</code>，<code>head()</code>会调用<code>head.data.frame</code>方法。当没有方法可以匹配对象的类时，函数会自动转向<code>method.default</code>方法。这就是<strong>方法分派</strong>的一个实际过程。</p>
+<div class="section level3">
+<h3>内置类和方法</h3>
+<p><strong>S3泛型函数和方法在统一各个模型的使用方式上是最有用的</strong>。比如我们可以创建一个线性模型，以不同角度查看模型信息：</p>
+<pre class="r"><code>lm1 = lm(mpg ~ cyl + vs, data = mtcars)</code></pre>
+<p><strong>线性模型本质上是由模型拟合产生的数据字段构成的列表</strong>，所以<code>lm1</code>的类型是<code>list</code>，但是它的类是<code>lm</code>，因此泛型函数根据<code>lm</code>选择方法：</p>
+<pre class="r"><code>typeof(lm1)
+#&gt; [1] &quot;list&quot;
+
+class(lm1)
+#&gt; [1] &quot;lm&quot;</code></pre>
+<p>甚至没有明确调用S3泛型函数时，S3方法分派也会自动进行。如果我们输入<code>lm1</code>：</p>
+<pre class="r"><code>lm1
+#&gt; 
+#&gt; Call:
+#&gt; lm(formula = mpg ~ cyl + vs, data = mtcars)
+#&gt; 
+#&gt; Coefficients:
+#&gt; (Intercept)          cyl           vs  
+#&gt;      39.625       -3.091       -0.939</code></pre>
+<p>实际上，<code>print()</code>函数被默默地调用了：</p>
+<pre class="r"><code>print(lm1)
+#&gt; 
+#&gt; Call:
+#&gt; lm(formula = mpg ~ cyl + vs, data = mtcars)
+#&gt; 
+#&gt; Coefficients:
+#&gt; (Intercept)          cyl           vs  
+#&gt;      39.625       -3.091       -0.939</code></pre>
+<p>为什么打印出来的不像列表呢？因为<code>print()</code>是一个泛型函数，它为<code>lm</code>选择了一个方法来打印线性模型最重要的信息。我们可以调用<code>getS3method(&quot;print&quot;, &quot;lm&quot;)</code>获取实际使用的方法与想象的进行验证：</p>
+<pre class="r"><code>identical(getS3method(&quot;print&quot;, &quot;lm&quot;), stats:::print.lm)
+#&gt; [1] TRUE</code></pre>
+<p><code>print()</code>展示模型的一个简要版本，<code>summary()</code>展示更详细的信息。<code>summary()</code>也是一个泛型函数，它为模型的所有类提供了许多方法：</p>
+<pre class="r"><code>summary(lm1)
+#&gt; 
+#&gt; Call:
+#&gt; lm(formula = mpg ~ cyl + vs, data = mtcars)
+#&gt; 
+#&gt; Residuals:
+#&gt;    Min     1Q Median     3Q    Max 
+#&gt; -4.923 -1.953 -0.081  1.319  7.577 
+#&gt; 
+#&gt; Coefficients:
+#&gt;             Estimate Std. Error t value Pr(&gt;|t|)    
+#&gt; (Intercept)   39.625      4.225    9.38  2.8e-10 ***
+#&gt; cyl           -3.091      0.558   -5.54  5.7e-06 ***
+#&gt; vs            -0.939      1.978   -0.47     0.64    
+#&gt; ---
+#&gt; Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1
+#&gt; 
+#&gt; Residual standard error: 3.25 on 29 degrees of freedom
+#&gt; Multiple R-squared:  0.728,  Adjusted R-squared:  0.71 
+#&gt; F-statistic: 38.9 on 2 and 29 DF,  p-value: 6.23e-09</code></pre>
+<p>实际上，<code>summary()</code>的输出结果也是一个对象，包含的数据都可以被访问。在这个例子里，这个对象是一个列表，是<code>summary.lm</code>类，它有可供<code>print()</code>选择的自己的方法：</p>
+<pre class="r"><code>lm1summary = summary(lm1)
+typeof(lm1summary)
+#&gt; [1] &quot;list&quot;
+
+class(lm1summary)
+#&gt; [1] &quot;summary.lm&quot;</code></pre>
+<p>查看列表成分：</p>
+<pre class="r"><code>names(lm1summary)
+#&gt;  [1] &quot;call&quot;          &quot;terms&quot;         &quot;residuals&quot;     &quot;coefficients&quot; 
+#&gt;  [5] &quot;aliased&quot;       &quot;sigma&quot;         &quot;df&quot;            &quot;r.squared&quot;    
+#&gt;  [9] &quot;adj.r.squared&quot; &quot;fstatistic&quot;    &quot;cov.unscaled&quot;</code></pre>
+<p>还有一些其他有用的且与模型相关的泛型函数，例如<code>plot()</code>,<code>predict()</code>。不同的内置模型和第三方扩展包提供的模型都能实现这些泛型函数。</p>
+<p>举例，我们可以对线性模型调用<code>plot()</code>函数：</p>
+<pre class="r"><code>oldpar = par(mfrow = c(2, 2))
+plot(lm1)</code></pre>
+<p><img src="/post/2018-08-15-high-level-and-OOP_files/figure-html/unnamed-chunk-15-1.png" width="672" /></p>
+<pre class="r"><code>par(oldpar)</code></pre>
+<p>为避免依次生成这4个图，我们用<code>par()</code>将绘图区域划分为2x2的子区域。</p>
+<p>利用<code>predict()</code>我们可以使用模型对新数据进行预测，泛型函数<code>predict()</code>自动选择正确的方法用新数据进行预测：</p>
+<pre class="r"><code>predict(lm1, data.frame(cyl = c(6, 8), vs = c(1, 1)))
+#&gt;    1    2 
+#&gt; 20.1 14.0</code></pre>
+</div>
+</div>
