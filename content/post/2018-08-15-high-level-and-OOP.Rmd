@@ -163,3 +163,86 @@ par(oldpar)
 predict(lm1, data.frame(cyl = c(6, 8), vs = c(1, 1)))
 ```
 
+**这个函数既可以用在样本内，又可以用在样本外**。如果我们为模型提供新数据，它就进行样本外预测。
+
+下面我们创建一幅真实值和拟合值的散点图，看一看线性模型的预测效果：
+
+```{r}
+plot(mtcars$mpg, fitted(lm1))
+```
+
+这里的`fitted()`也是泛型函数，等价于`lm1$fitted.values`，拟合值等于用原始数据得到的预测值，即用原始数据构建的模型预测原始数据，`predict(lm1, mtcars)`。
+
+真实值与拟合值的差称为残差，可以通过另一个泛型函数`residuals()`获得。
+
+```{r}
+plot(density(residuals(lm1)),
+     main = "Density of lm1 residuals")
+```
+
+这些泛型函数不仅适用于`lm`、`glm`和其他内置模型，也适用于其他扩展包提供的模型。
+
+例如我们使用`rpart`包，使用前面的数据和公式拟合一个回归树模型。
+
+```{r}
+if(!require("rpart")) install.packages("rpart")
+library(rpart)
+```
+
+```{r}
+tree_model = rpart(mpg ~ cyl + vs, data = mtcars)
+```
+
+我们之所以能够使用相同的方法，**是因为这个包的作者希望函数调用的方式与调用R内置函数保持一致**。
+
+```{r}
+typeof(tree_model)
+class(tree_model)
+```
+
+打印模型：
+
+```{r}
+print(tree_model)
+```
+
+更详细信息：
+
+```{r}
+summary(tree_model)
+```
+
+下面对结果进行可视化，得到树图：
+
+```{r}
+oldpar = par(xpd = NA)
+plot(tree_model)
+text(tree_model, use.n = TRUE)
+par(oldpar)
+```
+
+### 为现有类定义泛型函数
+
+**在定义泛型函数时，我们创建一个函数去调用`UseMethod()`出发方法分派。然后对泛型函数想要作用的类创建带有`method.class`形式的方法函数，同时还要创建带有`method.default`形式的默认方法来应对所有其他情况**。
+
+下面我们创建一个新的泛型函数`generic_head()`，它有两个参数：**输入对象`x`和需要提取的记录条数`n`**。泛型函数仅仅调用`UseMethod("generic_head")`来让R根据输入对象`x`的类执行方法分派。
+
+```{r}
+generic_head = function(x, n)
+    UseMethod("generic_head")
+```
+
+对原子向量提取前`n`个元素，因此分别定义`generic_head.numeric`、`generic_head.character`等，另外最好定义一个默认方法捕获不能匹配的其他所有情况：
+
+```{r}
+generic_head.default = function(x, n){
+    x[1:n]
+}
+```
+
+现在`generic_head`只有一种方法，等于没有使用泛型函数：
+
+```{r}
+generic_head(num_vec, 3)
+```
+

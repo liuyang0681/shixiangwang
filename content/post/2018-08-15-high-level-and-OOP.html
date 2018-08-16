@@ -49,7 +49,7 @@ class(data1)
 <pre class="r"><code>head
 #&gt; function (x, ...) 
 #&gt; UseMethod(&quot;head&quot;)
-#&gt; &lt;bytecode: 0x000000001869af60&gt;
+#&gt; &lt;bytecode: 0x0000000018fbb138&gt;
 #&gt; &lt;environment: namespace:utils&gt;</code></pre>
 <p>我们发现函数中并没有实际的操作细节。它调用<code>UseMethod(&quot;head&quot;)</code>来让<strong>泛型函数</strong><code>head()</code>执行方法分派，也就是说，对于不同的类，它可能有不同的执行方式（过程）。</p>
 <pre class="r"><code>num_vec = c(1, 2, 3, 4, 5)
@@ -59,9 +59,9 @@ data_frame = data.frame(x = 1:5, y = rnorm(5))</code></pre>
 #&gt; [1] 1 2 3
 head(data_frame, 3)
 #&gt;   x      y
-#&gt; 1 1 -0.210
-#&gt; 2 2  0.413
-#&gt; 3 3 -0.916</code></pre>
+#&gt; 1 1 -0.249
+#&gt; 2 2 -0.881
+#&gt; 3 3  0.781</code></pre>
 <p>我们可以使用<code>methods()</code>查看<code>head()</code>函数可以实现的所有方法：</p>
 <pre class="r"><code>methods(&quot;head&quot;)
 #&gt; [1] head.data.frame* head.default*    head.ftable*     head.function*  
@@ -144,5 +144,97 @@ plot(lm1)</code></pre>
 <pre class="r"><code>predict(lm1, data.frame(cyl = c(6, 8), vs = c(1, 1)))
 #&gt;    1    2 
 #&gt; 20.1 14.0</code></pre>
+<p><strong>这个函数既可以用在样本内，又可以用在样本外</strong>。如果我们为模型提供新数据，它就进行样本外预测。</p>
+<p>下面我们创建一幅真实值和拟合值的散点图，看一看线性模型的预测效果：</p>
+<pre class="r"><code>plot(mtcars$mpg, fitted(lm1))</code></pre>
+<p><img src="/post/2018-08-15-high-level-and-OOP_files/figure-html/unnamed-chunk-17-1.png" width="672" /></p>
+<p>这里的<code>fitted()</code>也是泛型函数，等价于<code>lm1$fitted.values</code>，拟合值等于用原始数据得到的预测值，即用原始数据构建的模型预测原始数据，<code>predict(lm1, mtcars)</code>。</p>
+<p>真实值与拟合值的差称为残差，可以通过另一个泛型函数<code>residuals()</code>获得。</p>
+<pre class="r"><code>plot(density(residuals(lm1)),
+     main = &quot;Density of lm1 residuals&quot;)</code></pre>
+<p><img src="/post/2018-08-15-high-level-and-OOP_files/figure-html/unnamed-chunk-18-1.png" width="672" /></p>
+<p>这些泛型函数不仅适用于<code>lm</code>、<code>glm</code>和其他内置模型，也适用于其他扩展包提供的模型。</p>
+<p>例如我们使用<code>rpart</code>包，使用前面的数据和公式拟合一个回归树模型。</p>
+<pre class="r"><code>if(!require(&quot;rpart&quot;)) install.packages(&quot;rpart&quot;)
+#&gt; 载入需要的程辑包：rpart
+library(rpart)</code></pre>
+<pre class="r"><code>tree_model = rpart(mpg ~ cyl + vs, data = mtcars)</code></pre>
+<p>我们之所以能够使用相同的方法，<strong>是因为这个包的作者希望函数调用的方式与调用R内置函数保持一致</strong>。</p>
+<pre class="r"><code>typeof(tree_model)
+#&gt; [1] &quot;list&quot;
+class(tree_model)
+#&gt; [1] &quot;rpart&quot;</code></pre>
+<p>打印模型：</p>
+<pre class="r"><code>print(tree_model)
+#&gt; n= 32 
+#&gt; 
+#&gt; node), split, n, deviance, yval
+#&gt;       * denotes terminal node
+#&gt; 
+#&gt; 1) root 32 1130.0 20.1  
+#&gt;   2) cyl&gt;=5 21  198.0 16.6  
+#&gt;     4) cyl&gt;=7 14   85.2 15.1 *
+#&gt;     5) cyl&lt; 7 7   12.7 19.7 *
+#&gt;   3) cyl&lt; 5 11  203.0 26.7 *</code></pre>
+<p>更详细信息：</p>
+<pre class="r"><code>summary(tree_model)
+#&gt; Call:
+#&gt; rpart(formula = mpg ~ cyl + vs, data = mtcars)
+#&gt;   n= 32 
+#&gt; 
+#&gt;       CP nsplit rel error xerror   xstd
+#&gt; 1 0.6431      0     1.000  1.098 0.2556
+#&gt; 2 0.0893      1     0.357  0.410 0.0789
+#&gt; 3 0.0100      2     0.268  0.402 0.0799
+#&gt; 
+#&gt; Variable importance
+#&gt; cyl  vs 
+#&gt;  65  35 
+#&gt; 
+#&gt; Node number 1: 32 observations,    complexity param=0.643
+#&gt;   mean=20.1, MSE=35.2 
+#&gt;   left son=2 (21 obs) right son=3 (11 obs)
+#&gt;   Primary splits:
+#&gt;       cyl &lt; 5   to the right, improve=0.643, (0 missing)
+#&gt;       vs  &lt; 0.5 to the left,  improve=0.441, (0 missing)
+#&gt;   Surrogate splits:
+#&gt;       vs &lt; 0.5 to the left,  agree=0.844, adj=0.545, (0 split)
+#&gt; 
+#&gt; Node number 2: 21 observations,    complexity param=0.0893
+#&gt;   mean=16.6, MSE=9.45 
+#&gt;   left son=4 (14 obs) right son=5 (7 obs)
+#&gt;   Primary splits:
+#&gt;       cyl &lt; 7   to the right, improve=0.507, (0 missing)
+#&gt;   Surrogate splits:
+#&gt;       vs &lt; 0.5 to the left,  agree=0.857, adj=0.571, (0 split)
+#&gt; 
+#&gt; Node number 3: 11 observations
+#&gt;   mean=26.7, MSE=18.5 
+#&gt; 
+#&gt; Node number 4: 14 observations
+#&gt;   mean=15.1, MSE=6.09 
+#&gt; 
+#&gt; Node number 5: 7 observations
+#&gt;   mean=19.7, MSE=1.81</code></pre>
+<p>下面对结果进行可视化，得到树图：</p>
+<pre class="r"><code>oldpar = par(xpd = NA)
+plot(tree_model)
+text(tree_model, use.n = TRUE)</code></pre>
+<p><img src="/post/2018-08-15-high-level-and-OOP_files/figure-html/unnamed-chunk-24-1.png" width="672" /></p>
+<pre class="r"><code>par(oldpar)</code></pre>
+</div>
+<div class="section level3">
+<h3>为现有类定义泛型函数</h3>
+<p><strong>在定义泛型函数时，我们创建一个函数去调用<code>UseMethod()</code>出发方法分派。然后对泛型函数想要作用的类创建带有<code>method.class</code>形式的方法函数，同时还要创建带有<code>method.default</code>形式的默认方法来应对所有其他情况</strong>。</p>
+<p>下面我们创建一个新的泛型函数<code>generic_head()</code>，它有两个参数：<strong>输入对象<code>x</code>和需要提取的记录条数<code>n</code></strong>。泛型函数仅仅调用<code>UseMethod(&quot;generic_head&quot;)</code>来让R根据输入对象<code>x</code>的类执行方法分派。</p>
+<pre class="r"><code>generic_head = function(x, n)
+    UseMethod(&quot;generic_head&quot;)</code></pre>
+<p>对原子向量提取前<code>n</code>个元素，因此分别定义<code>generic_head.numeric</code>、<code>generic_head.character</code>等，另外最好定义一个默认方法捕获不能匹配的其他所有情况：</p>
+<pre class="r"><code>generic_head.default = function(x, n){
+    x[1:n]
+}</code></pre>
+<p>现在<code>generic_head</code>只有一种方法，等于没有使用泛型函数：</p>
+<pre class="r"><code>generic_head(num_vec, 3)
+#&gt; [1] 1 2 3</code></pre>
 </div>
 </div>
