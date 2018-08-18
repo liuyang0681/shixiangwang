@@ -18,9 +18,6 @@ tags:
 <p>内容：</p>
 <ul>
 <li>S3</li>
-<li>S4</li>
-<li>引用类（Reference class, RC）</li>
-<li>R6扩展包</li>
 </ul>
 </blockquote>
 <p><strong>借助面向对象的编码风格，并加以合理的抽象，我们可以简单地模仿对象的重要特性，于是，问题和模型之间的转换就变得清晰自然</strong>。</p>
@@ -49,7 +46,7 @@ class(data1)
 <pre class="r"><code>head
 #&gt; function (x, ...) 
 #&gt; UseMethod(&quot;head&quot;)
-#&gt; &lt;bytecode: 0x0000000018fcb030&gt;
+#&gt; &lt;bytecode: 0x0000000018fcb138&gt;
 #&gt; &lt;environment: namespace:utils&gt;</code></pre>
 <p>我们发现函数中并没有实际的操作细节。它调用<code>UseMethod(&quot;head&quot;)</code>来让<strong>泛型函数</strong><code>head()</code>执行方法分派，也就是说，对于不同的类，它可能有不同的执行方式（过程）。</p>
 <pre class="r"><code>num_vec = c(1, 2, 3, 4, 5)
@@ -58,10 +55,10 @@ data_frame = data.frame(x = 1:5, y = rnorm(5))</code></pre>
 <pre class="r"><code>head(num_vec, 3)
 #&gt; [1] 1 2 3
 head(data_frame, 3)
-#&gt;   x      y
-#&gt; 1 1 -1.431
-#&gt; 2 2  0.490
-#&gt; 3 3  0.478</code></pre>
+#&gt;   x     y
+#&gt; 1 1 0.537
+#&gt; 2 2 1.072
+#&gt; 3 3 0.181</code></pre>
 <p>我们可以使用<code>methods()</code>查看<code>head()</code>函数可以实现的所有方法：</p>
 <pre class="r"><code>methods(&quot;head&quot;)
 #&gt; [1] head.data.frame* head.default*    head.ftable*     head.function*  
@@ -183,9 +180,9 @@ class(tree_model)
 #&gt;   n= 32 
 #&gt; 
 #&gt;       CP nsplit rel error xerror   xstd
-#&gt; 1 0.6431      0     1.000  1.105 0.2674
-#&gt; 2 0.0893      1     0.357  0.424 0.0885
-#&gt; 3 0.0100      2     0.268  0.419 0.0891
+#&gt; 1 0.6431      0     1.000  1.089 0.2579
+#&gt; 2 0.0893      1     0.357  0.432 0.0811
+#&gt; 3 0.0100      2     0.268  0.427 0.0818
 #&gt; 
 #&gt; Variable importance
 #&gt; cyl  vs 
@@ -245,10 +242,10 @@ text(tree_model, use.n = TRUE)</code></pre>
 }</code></pre>
 <p>现在函数就可以正常运行了：</p>
 <pre class="r"><code>generic_head(data_frame, 3)
-#&gt;   x      y
-#&gt; 1 1 -1.431
-#&gt; 2 2  0.490
-#&gt; 3 3  0.478</code></pre>
+#&gt;   x     y
+#&gt; 1 1 0.537
+#&gt; 2 2 1.072
+#&gt; 3 3 0.181</code></pre>
 <p>因为没有对参数进行检查，所以S3类执行的方法并不稳健。</p>
 </div>
 <div class="section level3">
