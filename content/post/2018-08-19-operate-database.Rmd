@@ -170,5 +170,9 @@ db.diamonds = dbReadTable(con, "diamonds")
 dbDisconnect(con)
 
 head(db.diamonds)
+str(db.diamonds)
 ```
 
+### 用SQL对关系数据库进行查询
+
+这部分我们学习如何根据需求对数据库进行查询，进而从中获取数据。SQL是重点，中文叫结构化查询语句。
