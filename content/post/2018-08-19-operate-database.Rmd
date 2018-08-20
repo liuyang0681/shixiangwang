@@ -176,3 +176,285 @@ str(db.diamonds)
 ### 用SQL对关系数据库进行查询
 
 这部分我们学习如何根据需求对数据库进行查询，进而从中获取数据。SQL是重点，中文叫结构化查询语句。
+
+首先与数据库建立连接：
+
+```{r}
+con = dbConnect(SQLite(), "../../R/data/datasets.sqlite")
+dbListTables(con)
+```
+
+使用`dbGetQuery()`我们可以将SQL查询语句作为参数输入，`select`语句可以帮助我们选取数据：
+
+```{r}
+db_diamonds = dbGetQuery(con, 
+                         "select * from diamonds")
+head(db_diamonds)
+```
+
+这里`*`代表所有的字段，如果仅需要字段的一个子集，可以依次列出列名：
+
+```{r}
+db_diamonds = dbGetQuery(con,
+                         "select carat, cut, color, clarity, 
+                         depth, price
+                         from diamonds")
+head(db_diamonds)
+```
+
+**如果想要选取数据中所有不重复的值，使用`select distinct`。例如：
+
+```{r}
+dbGetQuery(con, "select distinct cut from diamonds")
+```
+
+**注意，`dbGetQuery()`总是返回一个数据框**。
+
+当使用`select`选择列查询时，原表列名可能不合意，使用`A as B`可以将`A`列名修改为`B`。
+
+```{r}
+db_diamonds = dbGetQuery(con,
+                         "select carat, price, clarity as clarity_level from diamonds")
+
+head(db_diamonds)
+```
+
+有时候我们需要对查询的值进行计算得到需要的列，也可以使用`A as B`的形式：
+
+```{r}
+db_diamonds = dbGetQuery(con,
+                         "select carat, price, x * y * z as size
+                         from diamonds")
+head(db_diamonds, 3)
+```
+
+如果要用现有的列生成一个新列，再用新列生成另一个列，该怎么办？
+
+```{r, error=TRUE}
+db_diamonds = dbGetQuery(con,
+                         "select carat, price, x * y * z as size,
+                         price / size as value_density
+                         from diamonds")
+```
+
+上面的做法是错误的，`A as B`形式中`A`必须由已存在的列构成。我们可以通过内嵌的`select`语句产生一个临时表解决这样的需求：
+
+```{r}
+db_diamonds = dbGetQuery(con, 
+                         "select *, price / size as value_density from 
+                         (select carat, price, x * y * z as size
+                         from diamonds)")
+head(db_diamonds, 3)
+```
+
+数据库查询的另一个重要部分是**条件查询**，我们用`where`指明查询结果应满足的条件。
+
+例如，选择`cut`值为`Good`的钻石数据：
+
+```{r}
+good_diamonds = dbGetQuery(con,
+                           "select carat, cut, price from diamonds
+                           where cut = 'Good'")
+
+head(good_diamonds,3)
+```
+
+**如果查询需要同时满足多个条件，使用`and`进行连结**。
+
+```{r}
+good_e_diamonds = dbGetQuery(con, 
+                             "select carat, cut, color, price from diamonds
+                             where cut = 'Good' and color = 'E'")
+head(good_e_diamonds, 3)
+
+nrow(good_e_diamonds) / nrow(diamonds)
+```
+
+我们还可以通过`in`检查字段值是否包含在给定集合中：
+
+```{r}
+color_ef_diamonds = dbGetQuery(con,
+                               "select carat, cut, color, price from diamonds 
+                               where color in ('E', 'F')")
+
+nrow(color_ef_diamonds) 
+```
+
+使用`in`语句时指定一个集合，使用`between ... and `指定一个区间，这个区间不一定是数值型的，只要数据类型可比即可。
+
+```{r}
+some_price_diamonds = dbGetQuery(con, 
+                                 "select carat, cut, color, price from diamonds
+                                 where price between 5000 and 5500")
+nrow(some_price_diamonds)
+```
+
+还有个有用的运算符`like`可用于字符串数据，它可以筛选具有某个模式的字段。
+
+例如选择`cut`变量以`Good`结尾的记录，它可以是`Good`或`VeryGood`，我们用`like '%Good'`，这里`%`可匹配任意字符串。
+
+```{r}
+good_cut_diamonds = dbGetQuery(con,
+                               "select carat, cut, color, price from diamonds 
+                               where cut like '%Good'")
+
+nrow(good_cut_diamonds)
+```
+
+数据库查询还有一个重要功能，即**按照指定字段重新排列数据**，可以用`order by`实现。
+
+例如，以`price`字段升序排列：
+
+```{r}
+cheapest_diamonds = dbGetQuery(con,
+                               "select carat, price from diamonds
+                               order by price")
+
+head(cheapest_diamonds)
+```
+
+在排序字段时加`desc`就可以降序排列，因此可以得到一个与上面相反的数据框：
+
+```{r}
+most_expensive_diamonds = dbGetQuery(con,
+                                     "select carat, price from diamonds
+                                     order by price desc")
+
+head(most_expensive_diamonds)
+```
+
+同样的道理我们可以根据多个字段进行排序：
+
+```{r}
+cheapest_diamonds = dbGetQuery(con,
+                               "select carat, price from diamonds 
+                               order by price, carat desc")
+
+head(cheapest_diamonds)
+```
+
+用于排序的列可以是根据已有列计算生成的：
+
+```{r}
+dense_diamonds = dbGetQuery(con,
+                            "select carat, price, x*y*z as size from diamonds
+                            order by carat / size desc")
+head(dense_diamonds)
+```
+
+`where`和`order by`可以连用得到排序的子集：
+
+```{r}
+head(dbGetQuery(con,
+                "select carat, price from diamonds
+                where cut = 'Ideal' and clarity = 'IF' and color = 'J'
+                order by price"))
+```
+
+如果只关心前几行，可以用`limit`限制记录条数“
+
+```{r}
+dbGetQuery(con,
+           "select carat, price from diamonds
+           order by carat desc limit 3")
+```
+
+除了字段选择、条件筛选和排序，我们还可以在数据库中对记录进行分组聚合。
+
+例如计算每种颜色的记录条数：
+
+```{r}
+dbGetQuery(con,
+           "select color, count(*) as number from diamonds
+           group by color")
+```
+
+**除了汇总计数，还有`avg()`,`max()`,`min()`和`sum()`等聚合函数。**
+
+比如计算钻石不同透明度的平均价格：
+
+```{r}
+dbGetQuery(con,
+           "select clarity, avg(price) as avg_price 
+           from diamonds
+           group by clarity
+           order by avg_price desc")
+```
+
+在最低5个价格水平下，能买到最大的克拉数是多少？
+
+```{r}
+dbGetQuery(con,
+           "select price, max(carat) as max_carat
+           from diamonds
+           group by price
+           order by price limit 5")
+```
+
+可以在组内进行多个运算。下面代码计算每个透明度下的价格区间和价格平均值：
+
+```{r}
+dbGetQuery(con,
+           "select clarity,
+           min(price) as min_price,
+           max(price) as max_price,
+           avg(price) as avg_price
+           
+           from diamonds
+           group by clarity
+           order by avg_price desc")
+```
+
+下面用重量进行加权，计算不同透明度水平下每克拉钻石的平均价格：
+
+```{r}
+dbGetQuery(con, 
+           "select clarity,
+           sum(price * carat) / sum(carat) as wprice
+           from diamonds
+           group by clarity
+           order by wprice desc")
+```
+
+**关系型数据中，最能体现关系概念的运算是表的连接（join），即将若干表通过某些字段连接起来。**
+
+举例，创建一个新的数据框，包含字段`cut`,`color`和`clarity`共3条记录，之后我们根据这3条记录筛选数据：
+
+```{r}
+diamond_selector = data.frame(
+    cut = c("Ideal", "Good", "Fair"),
+    color = c("E", "I", "D"),
+    clarity = c("VS1", "T1", "IF"),
+    stringsAsFactors = FALSE
+)
+
+diamond_selector
+```
+
+现在写入数据库，然后连接`diamonds`表和`diamond_selector`表，选择合适的数据：
+
+```{r}
+dbWriteTable(con, "diamond_selector", diamond_selector,
+             row.names = FALSE, overwrite = TRUE)
+```
+
+通过连接子句`join-clause`声明要匹配的列：
+
+```{r}
+subset_diamonds = dbGetQuery(con, 
+                             "select cut, color, clarity, carat, price
+                             from diamonds
+                             join diamond_selector using (cut, color, clarity)")
+
+head(subset_diamonds)
+```
+
+最后不要忘记断开数据库连接，以确保所有资源被正确释放：
+
+```{r}
+dbDisconnect(con)
+```
+
+更多SQL用法，访问<http://www/w3school.com/sql>
+
+
