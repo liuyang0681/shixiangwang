@@ -659,8 +659,89 @@ get_balance(con, &quot;诗翔&quot;)
 <p>获取下交易记录：</p>
 <pre class="r"><code>get_transactions(con, &quot;诗翔&quot;, &quot;周丹&quot;)
 #&gt;                  time account_from account_to value
-#&gt; 1 2018-08-23 19:43:50         诗翔       周丹 1e+09</code></pre>
+#&gt; 1 2018-08-23 23:44:51         诗翔       周丹 1e+09</code></pre>
 <p>关闭数据库：</p>
 <pre class="r"><code>dbDisconnect(con)</code></pre>
+</div>
+<div class="section level3">
+<h3>将多个文件数据存入一个数据库</h3>
+<p>处理大数据问题常遇到两类问题：一是文本格式数据源非常大，难以载入内存；二是数据分散在许多文件中，需要费力气整合到数据框中。</p>
+<p>对于第一类问题的方案在前面已经演示过，<strong>我们可以逐块地读取数据，并将每块数据追加到数据库的某张表中</strong>。下面提供的函数便是为了这个目的设计的，给定输入文件、输出数据库、表名和数据块的容量，该函数向数据库的表中追加记录，只需要很小的工作内存。</p>
+<pre class="r"><code>chunk_rw = function(input, output, table, chunk_size = 10000){
+    first_row = read.csv(input, nrows = 1, header = TRUE)
+    header = colnames(first_row)
+    
+    n = 0
+    con = dbConnect(SQLite(), output)
+    on.exit(dbDisconnect(con))
+    while(TRUE) {
+        df = read.csv(input, 
+                      skip = 1 + n*chunk_size, nrows = chunk_size,
+                      header = FALSE, col.names = header,
+                      stringsAsFactors = FALSE)
+        if (nrow(df) == 0) break
+        dbWriteTable(con, table, df, row.names = FALSE, append = n&gt;0)
+        n = n + 1
+        cat(sprintf(&quot;%d records written\n&quot;, nrow(df)))
+    }
+}</code></pre>
+<p>编写该函数的技巧在于正确计算输入文件每个数据块的偏移量。</p>
+<p>下面将<code>diamonds</code>写入<code>csv</code>文件再用该函数读取进行测试：</p>
+<pre class="r"><code>write.csv(diamonds, &quot;../../R/data/diamonds.csv&quot;, quote = FALSE, row.names = FALSE)
+
+chunk_rw(&quot;../../R/data/diamonds.csv&quot;, &quot;../../R/data/diamonds.sqlite&quot;, &quot;diamonds&quot;)
+#&gt; 10000 records written
+#&gt; 10000 records written
+#&gt; 10000 records written
+#&gt; 10000 records written
+#&gt; 10000 records written
+#&gt; 3940 records written</code></pre>
+<p>另一种情况我们可以将所有分布的文件写入到一个数据库以便轻松地实现查询。</p>
+<pre class="r"><code>batch_rw = function(dir, output, table, overwrite = TRUE){
+    files = list.files(dir, &quot;\\.csv$&quot;, full.names = TRUE)
+    con = dbConnect(SQLite(), output)
+    
+    on.exit(dbDisconnect(con))
+    
+    exit = dbExistsTable(con, table)
+    if(exit) {
+        if (overwrite) dbRemoveTable(con, table)
+        else stop(sprintf(&quot;Table &#39;%s&#39; already exists&quot;, table))
+    }
+    
+    exist = FALSE
+    for (file in files){
+        cat(file, &quot;...&quot;)
+        df = read.csv(file, header = TRUE, stringsAsFactors = FALSE)
+        dbWriteTable(con, table, df, row.names = FALSE, append = exist)
+        exist = TRUE
+        cat(&quot;done\n&quot;)
+    }
+}</code></pre>
+<p>该函数可以读取指定目录下一组<code>.csv</code>文件，因为手边没有合适的数据，就不测试了。</p>
+<p>前面介绍的SQLite数据库知识和基本用法可以推广到其他关系型数据库的使用中去。例如，通过RMySQL操作MySQL，通过RPostges操作PostreSQL，通过SQLServer操作Microsoft SQL，或者通过RODBC操作ODBC兼容数据库（Microsoft Access和Excel）。它们的操作方法类似，因此掌握一种，其他也就不成问题。</p>
+</div>
+</div>
+<div class="section level2">
+<h2>操作非关系型数据库</h2>
+<p>关系型数据库主要是以表的形式组织，即它们是相互之间具有关联的表的集合。</p>
+<p>然而，当数据量超出服务器的承载容量时，新问题产生了，此时数据需要以分布式形式存储，同时又可以仍然保持一个逻辑数据库来进行访问。</p>
+<p>近些年，新数据库模型的引入和其在大数据分析与实时应用中的出色表现，是的NoSQL开始流行。关系型数据库和非关系型数据库在存储模型方面的差别是显而易见的。比如我们可以将一个购物网站的商品和评论信息存储在一个具有两张表的关系型数据库中。</p>
+<p>当一个商品具有许多相关的表和海量记录时，数据库必须分给服务器群，但这会增加数据查询的难度，因为即使运行一个简单的查询也是极度低效。如果MongoDB存储这样的数据，<strong>每个商品被存储为一个文档，该商品的所有评论会以数组的形式存储在该文档的一个字段中</strong>。如此一来，数据的查询就容易多了。</p>
+<div id="mongodb" class="section level3">
+<h3>MongoDB操作</h3>
+<p><strong>MongoDB是一种流行的非关系型数据库，它提供了一种面向文档的数据存储方式</strong>。每个商品就是集合的一份文档，商品具有一些描述字段和一个数组类型的评论字段。所有的评论都是一个子文档，因此每个逻辑项可以用子集的逻辑形式存储。</p>
+<p><strong>关系型数据库可能具有许多模式，每种模式（数据库）可以由多张表组成，每张表可能含有多条记录。相似地，一个MongoDB实例可以搭建多个数据库。每个数据库可以存在多个集合，每个集合内可能有多个文档。二者的主要区别在于，关系型数据库中，一张表的所有记录具有相同的结构，但MongoDB数据库集合内的文档却没有模式限制，可以灵活地实现嵌套结构。</strong></p>
+<p>安装MongoDB，请访问<a href="https://docs.mongodb.com/manual/installation/" class="uri">https://docs.mongodb.com/manual/installation/</a>，它几乎支持所有的主流平台，按照说明操作即可。</p>
+<div id="mongodb" class="section level4">
+<h4>用MongoDB查询数据</h4>
+<p>假设我们已经在电脑上按照好了MongoDB，可以在R中使用<code>mongolite</code>扩展包操作MongoDB。</p>
+<pre class="r"><code>install.packages(&quot;mongolite&quot;)</code></pre>
+<pre class="r"><code>library(mongolite)
+
+m = mongo(&quot;products&quot;, &quot;test&quot;, &quot;mongodb://localhost&quot;)</code></pre>
+<p>我的黑MAC上用homebrew安装不了MongoDB（访问不了谷歌的API下载程序），所以后续就不学了。</p>
+<p>感觉现在重要的还是学习关系数据库，自己用起来，掌握SQL语法。</p>
+</div>
 </div>
 </div>
