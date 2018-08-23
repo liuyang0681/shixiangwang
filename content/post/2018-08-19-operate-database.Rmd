@@ -13,6 +13,7 @@ tags:
     - Redis
 ---
 
+> 在阅读之前我有必要进行申明,因为使用的是RMD文档,所以每次RENDER的时候都会读取数据库,所以结果显示不一样正常,有的也加了`overwrite`和`append`选项。显示的结果不一定与实际读者操作的结果一致。
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(collapse = TRUE, dev = "png", comment = "#>")
@@ -20,6 +21,14 @@ knitr::opts_chunk$set(collapse = TRUE, dev = "png", comment = "#>")
 options(digits=3)
 options(max.print=200)
 ```
+
+```{r rmData, message=FALSE, warning=FALSE, include=FALSE}
+if (length(dir("../../R/data/")) != 0){
+    # remove database files
+    file.remove(dir("../../R/data/"))
+}
+```
+
 
 >内容：
 >
@@ -119,6 +128,8 @@ dbDisconnect(con)
 ```{r}
 con = dbConnect(SQLite(), "../../R/data/example2.sqlite")
 
+# 先移除之前的表
+dbRemoveTable(con, "products")
 chunk_size = 10
 id = 0
 for (i in 1:6){
@@ -457,4 +468,253 @@ dbDisconnect(con)
 
 更多SQL用法，访问<http://www/w3school.com/sql>
 
+
+### 分块提取查询结果
+
+通常，我们只提取数据库的一个子集进行研究。然后有时候我们需要检查的数据量还是超过了计算机内存容量。因此必须逐块处理。
+
+接下来我们使用`dbSendQuery()`进行查询，而不是`dbGetQuery()`，然后我们重复地从查询结果中取回一块数据，直到取回所有的查询结果。
+
+```{r}
+con = dbConnect(SQLite(), "../../R/data/datasets.sqlite")
+res = dbSendQuery(con,
+                  "select carat, cut, color, price from diamonds
+                  where cut = 'Ideal' and color = 'E' ") 
+while(!dbHasCompleted(res)) {
+    chunk = dbFetch(res, 800)
+    cat(nrow(chunk), "records fetched\n")
+}
+```
+
+清理结果并关闭连接：
+
+```{r}
+dbClearResult(res)
+dbDisconnect(con)
+```
+
+当实际处理的数据过大时，这样处理不失为一种好的办法。
+
+### 出于一致性考虑的事务操作
+
+当我们插入或更新数据时，是通过**事务**实现的。其中**事务是对数据库操作的逻辑单位**，事务操作有两种：**提交（将数据库所做的修改永久写入数据库）和回滚（将数据库所做的修改全部撤销，数据库还原到操作前的状态）**。
+
+如果一个事务操作失败了，我们可以撤销并回滚，以保证数据的一致性。
+
+下面用一个例子来简单模拟一次数据的累积和出错过程。
+
+```{r, error=TRUE}
+set.seed(123)
+con = dbConnect(SQLite(), "../../R/data/products.sqlite")
+
+chunk_size = 10
+
+for (i in 1:6){
+    cat("Processing chunk", i, "\n")
+    if(runif(1) <= 0.2) stop("Data error")
+    
+    chunk = data.frame(id = ((i - 1L) * chunk_size) : (i * chunk_size - 1L),
+                        type = LETTERS[[i]],
+                        score = rbinom(chunk_size, 10, (10 -i ) /10),
+                       stringsAsFactors = FALSE)
+    dbWriteTable(con, "products", chunk, append = i > 1, row.names = FALSE)
+}
+```
+
+该过程在处理第5个数据处理时出错。我们计算一下表中的记录数：
+
+```{r}
+dbGetQuery(con, "select COUNT(*) from products")
+
+dbDisconnect(con)
+```
+
+这个时候很尴尬——存储了一部分正确的信息，但有没有完全对。一般这时我们希望只有两种结果：**要么正确存储所有数据，要么不存入任何数据，这两个结果都考研保证数据库的一致性**。
+
+为了确保对数据库的一系列变更能够作为一个整体，我们在写入任何数据前都调用`dbBegin()`，待所有变更完成后，再调用`dbCommit()`，如果这个过程出现了错误，就调用`dbRollback()`。
+
+接下来的代码是上个例子的增强版，实现了上一段话所说的流程。请读者务必谨记这一思想与过程。
+
+```{r}
+set.seed(123)
+
+file.remove("../../R/data/products.sqlite")
+
+con = dbConnect(SQLite(), "../../R/data/products.sqlite")
+
+chunk_size = 10
+dbBegin(con)
+fes = tryCatch({
+    for (i in 1:6){
+        cat("Processing chunk", i, "\n")
+        if(runif(1) <= 0.2) stop("Data error")
+        chunk = data.frame(id = ((i - 1L) * chunk_size) : (i * chunk_size - 1L),
+                        type = LETTERS[[i]],
+                        score = rbinom(chunk_size, 10, (10 -i ) /10),
+                       stringsAsFactors = FALSE)
+        dbWriteTable(con, "products", chunk, append = i > 1, row.names = FALSE)
+        }
+    dbCommit(con)
+}, error = function(e){
+        warning("An error occurs: ", e, "\nRolling back", immediate. = TRUE)
+        dbRollback(con)
+    }
+)
+```
+
+我们可以发现成功捕捉到了错误，此时再验证一下，数据库应当没有`products`表：
+
+```{r, error=TRUE}
+dbGetQuery(con, "select COUNT(*) from products")
+
+dbDisconnect(con)
+```
+
+**要求数据之间具有一致性的另一个例子是账户转移。当我们将一笔资金从一个账户转移到另一个账户时，必须确保系统从一个账户提取资金，同时向另一账户存入等额资金**。这两个变动要么同时发生，要么同时都失败，以保证一致性。对于这样的问题，利用关系型数据库的事务操作可以轻松实现。
+
+下面创建一个函数设定一个虚拟银行的`SQLite`数据库，调用`dbSendQuery()`发送命令，创建`accounts`表（账户）和`transactions`表（交易）。
+
+```{r}
+create_bank = function(dbfile){
+    if(file.exists(dbfile)) file.remove(dbfile)
+    con = dbConnect(SQLite(), dbfile)
+    dbSendQuery(con,
+                "create table accounts
+                (name text primarykey key, balance real)")
+    dbSendQuery(con,
+                "create table transactions
+                (time text, account_from text, account_to text, value real)")
+    con
+}
+```
+
+`accounts`表具有2列：`name`和`balance`。`transaction`表有4列：`time`、`account_from`、`account_to`和`value`。
+
+第1张表格存储所有的账户信息，第2张存储所有的历史交易信息。
+
+另外我们再创建一个函数用于设定带账户名和初始余额的账户，它用`insert into`向`accounts`表写入新记录：
+
+```{r}
+create_account = function(con, name, balance){
+    dbSendQuery(con,
+                sprintf("insert into accounts (name, balance) values ('%s', %.2f)", name, balance))
+    TRUE
+}
+```
+
+这里我们使用`sprintf()`产生之前的SQL语句。
+
+接着我们写一个转账函数，用于检查数据库中是否同时存在取帐用户和收账用户，确保取帐用户的余额足够完成转账请求。一旦转账有效，它会更新两个账户的余额，并向数据库中添加一条交易记录：
+
+```{r}
+transfer = function(con, from, to, value){
+    get_account = function(name){
+        account = dbGetQuery(con,
+                             sprintf("select * from accounts
+                                     where name = '%s' ", name))
+        if(nrow(account) == 0){
+            stop(sprintf("Account '%s' does not exist", name))
+        }
+        account
+    }
+    
+    account_from = get_account(from)
+    account_to = get_account(to)
+    
+    if (account_from$balance < value) {
+        stop(sprintf("Insufficient money to transfer from '%s'", from))
+    }else{
+        dbSendQuery(con,
+            sprintf("update accounts set balance = %.2f
+                    where name = '%s' ",
+                    account_from$balance - value, from))
+        dbSendQuery(con,
+                    sprintf("update accounts set balance = %.2f
+                            where name = '%s' ",
+                            account_to$balance + value, to))
+        dbSendQuery(con,
+                    sprintf("insert into transactions (time, account_from, 
+                            account_to, value)
+                            values ('%s', '%s', '%s', %.2f)", 
+                    format(Sys.time(), "%Y-%m-%d %H:%M:%S"), from, to, value))
+    }
+    TRUE
+}
+```
+
+尽管我们已经考虑到了一致性的问题也在函数中做了检查，但仍然有其他可能的风险，因此我们实现`transfer()`的一种安全版本，利用**事务操作**确保只要转账出现任何错误，就撤销`transfer()`的一切更改。
+
+```{r}
+safe_transfer = function(con, ...){
+    dbBegin(con)
+    tryCatch({
+        transfer(con, ...)
+        dbCommit(con)
+    }, error = function(e){
+        message("An error occurs in the transcation. Rollback...")
+        dbRollback(con)
+        stop(e)
+    })
+}
+```
+
+这里`safe_transfer()`是`transfer()`的一个封装，它将修改放入了安全的沙箱中以确保数据库的一致性。
+
+在对以上函数进行运行测试前，我们还需要函数来查看给定账户的余额和成功完成的交易信息：
+
+```{r}
+get_balance = function(con, name){
+    res = dbGetQuery(con,
+                     sprintf("select balance from accounts
+                             where name = '%s'", name))
+    res$balance
+}
+
+get_transactions = function(con, from, to){
+    dbGetQuery(con,
+               sprintf("select * from transactions
+                       where account_from = '%s' and account_to = '%s'",
+                       from, to))
+}
+```
+
+**下面进行测试**。
+
+首先创建一个虚拟银行，然后创建两个用户并赋予初始余额。
+
+```{r}
+con = create_bank("../../R/data/bank.sqlite")
+create_account(con, "周丹", 5000000000)
+create_account(con, "诗翔", 30000000000)
+
+```
+
+现在查看下我和妹子的虚拟币！
+
+```{r}
+get_balance(con, "周丹")
+get_balance(con, "诗翔")
+```
+
+真有钱，哇咔咔。给妹纸转账：
+
+```{r}
+safe_transfer(con, "诗翔", "周丹", 1000000000)
+
+get_balance(con, "周丹")
+get_balance(con, "诗翔")
+```
+
+
+获取下交易记录：
+
+```{r}
+get_transactions(con, "诗翔", "周丹")
+```
+
+关闭数据库：
+
+```{r}
+dbDisconnect(con)
+```
 
