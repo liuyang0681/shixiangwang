@@ -1,0 +1,301 @@
+---
+title: "R-数据操作"
+author: 王诗翔
+date: 2018-08-25
+slug: "r-hight-level-data-operation"
+categories: 
+    - R
+tags:
+    - dplyr
+    - sqldf
+    - data.table
+    - rlist
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(collapse = TRUE, dev = "png", comment = "#>")
+#Sys.setlocale('LC_ALL','C') # Embed this directly in the Rmarkdown script that contains the Chinese character comment
+options(digits=3)
+options(max.print=200)
+```
+
+>本文内容：
+>
+> * 基础函数操作数据框
+> * sqldf包使用SQL查询数据框
+> * data.table包操作数据
+> * dplyr管道操作处理数据
+> * rlist包处理嵌套数据结构
+
+## 使用内置函数操作数据框
+
+**数据框的本质是一个由向量构成的列表**，由于列长度相同，所以可以当做矩阵进行访问和操作。比如选择满足特定条件的行，使用`[]`符号，第一个参数提供一个逻辑向量，第二个参数留空。
+
+本文大部分的代码都是基于一组产品的虚拟数据。我们先将数据载入，然后学习怎么用不同的方法操作数据。
+
+```{r}
+if(!require(readr)) install.packages("readr")
+
+product_info = read_csv("../../R/dataset/product-info.csv")
+product_info
+```
+
+当数据以数据框的形式载入内存后，我们可以使用下面的代码查看每一列的类型：
+
+```{r}
+sapply(product_info, class)
+```
+
+
+注意`read_csv`函数载入的数据框与内置函数`read.csv`函数是不同的，主要体现在不会将字符串转换为因子变量，当然前者的速度要快得多。
+
+接下来我们正式学习用R内置的函数操作数据框进行分析和统计的一些方法。
+
+### 内置函数操作数据框
+
+选取`type`为`toy`的行：
+
+```{r}
+product_info[product_info$type == "toy", ]
+```
+
+或选取`released`为`no`的行：
+
+```{r}
+product_info[product_info$released == "no", ]
+```
+
+**对列进行筛选**需要将第1个参数留空，给第2个参数提供字符向量。
+
+```{r}
+product_info[, c("id", "name", "type")]
+```
+
+行列筛选也是可以的，我们只要组合前面的两种情况即可。
+
+```{r}
+product_info[product_info$type == "toy", c("name", "class", "released")]
+```
+
+内置函数`subset()`可以简化取子集操作的过程：
+
+```{r}
+subset(product_info,
+       subset = type == "model" & released == "yes",
+       select = name:class)
+```
+
+使用`with()`函数在数据框的语义中计算表达式，即可以直接使用数据框的列名，而不必重复指定数据框：
+
+```{r}
+with(product_info, name[released == "no"])
+```
+
+除了构建子集，表达式还可以用来统计每列各个可能值出现的频数。
+
+```{r}
+with(product_info, table(type[released == "yes"]))
+```
+
+除了产品信息表，还有一张产品属性的统计表：
+
+```{r}
+product_stats = read_csv("../../R/dataset/product-stats.csv")
+product_stats
+```
+
+**如果现在要获取尺寸最大的前3个产品的名字该怎么办？**
+
+一种方法是将`product_stats`按尺寸降序排列，选择前3个记录的id，然后用id值筛选`product_info`的行：
+
+```{r}
+top3_id = unlist(product_stats[order(product_stats$size, decreasing = TRUE), "id"])[1:3]
+
+product_info[product_info$id %in% top3_id, ]
+
+```
+
+我们用比较冗长的方式完成了任务。但仔细在想想，两个数据框是通过`id`连接到一起的，我们可以把它们合并到一起，然后执行提取操作：
+
+```{r}
+product_table = merge(product_info, product_stats, by = "id")
+product_table
+
+```
+
+现在通过合并的数据框，我们可以根据任意一列排序数据框，而不需要处理其他的表格数据：
+
+```{r}
+product_table[order(product_table$size), ]
+```
+
+前面的问题我们也可以利用合并的数据框加以解决：
+
+```{r}
+product_table[order(product_table$size, decreasing = TRUE), "name"][1:3]
+```
+
+有时候我们需要生成新数据框来对原始数据基础上进行调整和处理，从而避免破坏原始数据。`transform()`函数可以帮助我们完成这类任务，例如：
+
+```{r}
+transform(product_table,
+          released = ifelse(released == "yes", TRUE, FALSE),
+          density = weight / size)
+```
+
+前面数据中我们看到有一些缺失值（用`NA`表示），很多时候我们不希望数据出现任何缺失值，因此需要某种办法处理它们。为了演示处理的方法，我们再载入一张包含缺失值的表，包含每件产品的质量、耐久性、防水性的测试结果。
+
+```{r}
+product_tests = read_csv("../../R/dataset/product-tests.csv")
+product_tests
+```
+
+`na.omit()`可以删除所有包含缺失值的行：
+
+```{r}
+na.omit(product_tests)
+```
+
+另外，函数`complete.cases()`可以返回逻辑向量，表明某行是否完整。
+
+```{r}
+complete.cases(product_tests)
+```
+
+利用该函数可以筛选数据框，比如获得不含缺失值的`id`值：
+
+```{r}
+product_tests[complete.cases(product_tests), "id"]
+```
+
+前面给出的3个表格有共同的`id`列，可惜R里面内置函数只能一次合并2个数据框：
+
+```{r}
+product_full = merge(product_table, product_tests, by = "id")
+product_full
+```
+
+对完全合并好的表格，我们利用`tapply()`函数（`apply`家族成员）可以进行统计，该函数专门用于处理表格数据，使用某些方法根据某列队另一列的数据进行统计。
+
+例如根据type列计算quality列的均值：
+
+```{r}
+mean_quality1 = tapply(product_full$quality,
+                       list(product_full$type),
+                       mean, na.rm=TRUE)
+mean_quality1
+```
+
+返回的结果看起来是个数值向量，我们使用`str()`看看：
+
+```{r}
+str(mean_quality1)
+```
+
+**实际上，这是个一维数组**：
+
+```{r}
+is.array(mean_quality1)
+```
+
+`tapply()`返回的是一个数组，而不是简单的数值向量，因此可以方便地计算多组操作。
+
+例如计算每一对`type`和`class`组合的`quality`均值：
+
+```{r}
+mean_quality2 = tapply(product_full$quality,
+                       list(product_full$type, product_full$class),
+                       mean, na.rm = TRUE)
+mean_quality2
+```
+
+对于二维数组，我们可以使用两个参数来获取其中的值：
+
+```{r}
+typeof(mean_quality2)
+class(mean_quality2)
+
+mean_quality2["model", "vehicle"]
+```
+
+同理我们可以根据多列分组，使用`with()`可以避免反复输入`product_full`：
+
+```{r}
+mean_quality3 = with(product_full,
+                     tapply(quality, list(type, material, released),
+                            mean, na.rm = TRUE))
+
+mean_quality3
+```
+
+使用3个参数可以获取单元格中的值：
+
+```{r}
+mean_quality3["model", "Wood", "yes"]
+```
+
+### reshape2重塑数据框
+
+前面我们学习了如何筛选、排序、合并和汇总数据框，有时候我们需要做些更复杂的操作。
+
+例如下面数据包含两种产品不同日期的质量和耐久性的测试结果：
+
+```{r}
+toy_tests = read_csv("../../R/dataset/product-toy-tests.csv")
+toy_tests
+```
+
+如果需要同时比较两种产品的质量和耐久性，这种格式就比较麻烦，如果是下面的格式就好了：
+
+```
+date    T01 T02
+20160201    9   9
+2016    10  9
+```
+
+`reshape2`包就是用来搞定这种任务的，如果没有安装，运行下面代码：
+
+```{r, eval=FALSE}
+install.packages("reshape2")
+```
+
+
+安装成功后，我们就可以使用`dcast()`来转换数据，用于比较：
+
+```{r}
+library(reshape2)
+
+toy_quality = dcast(toy_tests, date ~ id, value.var = "quality")
+toy_quality
+```
+
+上述代码重塑了`toy_tests`让`date`列被共享，`id`值被单独分割为列，每个`date`与`id`对应的值是`quality`。
+
+可以看到数据中存在缺失值，有一种叫**末次观测值结转法（LOCF）**可以填补缺失值，当非缺失值后面紧跟一个缺失值时，就用该缺失值填补后面的缺失值，直到所有缺失值都被填满。`zoo`包提供了LOCF的一个实现，使用下面代码安装：
+
+```{r, eval = FALSE}
+install.packages("zoo")
+```
+
+下面用一组简单的向量演示：
+
+```{r}
+library(zoo)
+na.locf(c(1, 2, NA, NA, 3, 1, NA, 2, NA))
+```
+
+
+同样的方法我们可以应用于现在处理的数据：
+
+```{r}
+na.locf(toy_quality$T01)
+```
+
+如果需要填补的数据很多，包含上千个产品，更好的做法是使用`lapply`进行自动分配：
+
+```{r}
+toy_quality[-1] = lapply(toy_quality[-1], na.locf )
+toy_quality
+```
+

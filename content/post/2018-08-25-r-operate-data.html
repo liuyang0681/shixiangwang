@@ -1,0 +1,354 @@
+---
+title: "R-数据操作"
+author: 王诗翔
+date: 2018-08-25
+slug: "r-hight-level-data-operation"
+categories: 
+    - R
+tags:
+    - dplyr
+    - sqldf
+    - data.table
+    - rlist
+---
+
+
+
+<blockquote>
+<p>本文内容：</p>
+<ul>
+<li>基础函数操作数据框</li>
+<li>sqldf包使用SQL查询数据框</li>
+<li>data.table包操作数据</li>
+<li>dplyr管道操作处理数据</li>
+<li>rlist包处理嵌套数据结构</li>
+</ul>
+</blockquote>
+<div class="section level2">
+<h2>使用内置函数操作数据框</h2>
+<p><strong>数据框的本质是一个由向量构成的列表</strong>，由于列长度相同，所以可以当做矩阵进行访问和操作。比如选择满足特定条件的行，使用<code>[]</code>符号，第一个参数提供一个逻辑向量，第二个参数留空。</p>
+<p>本文大部分的代码都是基于一组产品的虚拟数据。我们先将数据载入，然后学习怎么用不同的方法操作数据。</p>
+<pre class="r"><code>if(!require(readr)) install.packages(&quot;readr&quot;)
+#&gt; 载入需要的程辑包：readr
+
+product_info = read_csv(&quot;../../R/dataset/product-info.csv&quot;)
+#&gt; Parsed with column specification:
+#&gt; cols(
+#&gt;   id = col_character(),
+#&gt;   name = col_character(),
+#&gt;   type = col_character(),
+#&gt;   class = col_character(),
+#&gt;   released = col_character()
+#&gt; )
+product_info
+#&gt; # A tibble: 6 x 5
+#&gt;   id    name      type  class   released
+#&gt;   &lt;chr&gt; &lt;chr&gt;     &lt;chr&gt; &lt;chr&gt;   &lt;chr&gt;   
+#&gt; 1 T01   SupCar    toy   vehicle yes     
+#&gt; 2 T02   SupPlane  toy   vehicle no      
+#&gt; 3 M01   JeepX     model vehicle yes     
+#&gt; 4 M02   AircraftX model vehicle yes     
+#&gt; 5 M03   Runner    model people  yes     
+#&gt; 6 M04   Dancer    model people  no</code></pre>
+<p>当数据以数据框的形式载入内存后，我们可以使用下面的代码查看每一列的类型：</p>
+<pre class="r"><code>sapply(product_info, class)
+#&gt;          id        name        type       class    released 
+#&gt; &quot;character&quot; &quot;character&quot; &quot;character&quot; &quot;character&quot; &quot;character&quot;</code></pre>
+<p>注意<code>read_csv</code>函数载入的数据框与内置函数<code>read.csv</code>函数是不同的，主要体现在不会将字符串转换为因子变量，当然前者的速度要快得多。</p>
+<p>接下来我们正式学习用R内置的函数操作数据框进行分析和统计的一些方法。</p>
+<div class="section level3">
+<h3>内置函数操作数据框</h3>
+<p>选取<code>type</code>为<code>toy</code>的行：</p>
+<pre class="r"><code>product_info[product_info$type == &quot;toy&quot;, ]
+#&gt; # A tibble: 2 x 5
+#&gt;   id    name     type  class   released
+#&gt;   &lt;chr&gt; &lt;chr&gt;    &lt;chr&gt; &lt;chr&gt;   &lt;chr&gt;   
+#&gt; 1 T01   SupCar   toy   vehicle yes     
+#&gt; 2 T02   SupPlane toy   vehicle no</code></pre>
+<p>或选取<code>released</code>为<code>no</code>的行：</p>
+<pre class="r"><code>product_info[product_info$released == &quot;no&quot;, ]
+#&gt; # A tibble: 2 x 5
+#&gt;   id    name     type  class   released
+#&gt;   &lt;chr&gt; &lt;chr&gt;    &lt;chr&gt; &lt;chr&gt;   &lt;chr&gt;   
+#&gt; 1 T02   SupPlane toy   vehicle no      
+#&gt; 2 M04   Dancer   model people  no</code></pre>
+<p><strong>对列进行筛选</strong>需要将第1个参数留空，给第2个参数提供字符向量。</p>
+<pre class="r"><code>product_info[, c(&quot;id&quot;, &quot;name&quot;, &quot;type&quot;)]
+#&gt; # A tibble: 6 x 3
+#&gt;   id    name      type 
+#&gt;   &lt;chr&gt; &lt;chr&gt;     &lt;chr&gt;
+#&gt; 1 T01   SupCar    toy  
+#&gt; 2 T02   SupPlane  toy  
+#&gt; 3 M01   JeepX     model
+#&gt; 4 M02   AircraftX model
+#&gt; 5 M03   Runner    model
+#&gt; 6 M04   Dancer    model</code></pre>
+<p>行列筛选也是可以的，我们只要组合前面的两种情况即可。</p>
+<pre class="r"><code>product_info[product_info$type == &quot;toy&quot;, c(&quot;name&quot;, &quot;class&quot;, &quot;released&quot;)]
+#&gt; # A tibble: 2 x 3
+#&gt;   name     class   released
+#&gt;   &lt;chr&gt;    &lt;chr&gt;   &lt;chr&gt;   
+#&gt; 1 SupCar   vehicle yes     
+#&gt; 2 SupPlane vehicle no</code></pre>
+<p>内置函数<code>subset()</code>可以简化取子集操作的过程：</p>
+<pre class="r"><code>subset(product_info,
+       subset = type == &quot;model&quot; &amp; released == &quot;yes&quot;,
+       select = name:class)
+#&gt; # A tibble: 3 x 3
+#&gt;   name      type  class  
+#&gt;   &lt;chr&gt;     &lt;chr&gt; &lt;chr&gt;  
+#&gt; 1 JeepX     model vehicle
+#&gt; 2 AircraftX model vehicle
+#&gt; 3 Runner    model people</code></pre>
+<p>使用<code>with()</code>函数在数据框的语义中计算表达式，即可以直接使用数据框的列名，而不必重复指定数据框：</p>
+<pre class="r"><code>with(product_info, name[released == &quot;no&quot;])
+#&gt; [1] &quot;SupPlane&quot; &quot;Dancer&quot;</code></pre>
+<p>除了构建子集，表达式还可以用来统计每列各个可能值出现的频数。</p>
+<pre class="r"><code>with(product_info, table(type[released == &quot;yes&quot;]))
+#&gt; 
+#&gt; model   toy 
+#&gt;     3     1</code></pre>
+<p>除了产品信息表，还有一张产品属性的统计表：</p>
+<pre class="r"><code>product_stats = read_csv(&quot;../../R/dataset/product-stats.csv&quot;)
+#&gt; Parsed with column specification:
+#&gt; cols(
+#&gt;   id = col_character(),
+#&gt;   material = col_character(),
+#&gt;   size = col_integer(),
+#&gt;   weight = col_double()
+#&gt; )
+product_stats
+#&gt; # A tibble: 6 x 4
+#&gt;   id    material  size weight
+#&gt;   &lt;chr&gt; &lt;chr&gt;    &lt;int&gt;  &lt;dbl&gt;
+#&gt; 1 T01   Metal      120   10  
+#&gt; 2 T02   Metal      350   45  
+#&gt; 3 M01   Plastics    50   NA  
+#&gt; 4 M02   Plastics    85    3  
+#&gt; 5 M03   Wood        15   NA  
+#&gt; 6 M04   Wood        16    0.6</code></pre>
+<p><strong>如果现在要获取尺寸最大的前3个产品的名字该怎么办？</strong></p>
+<p>一种方法是将<code>product_stats</code>按尺寸降序排列，选择前3个记录的id，然后用id值筛选<code>product_info</code>的行：</p>
+<pre class="r"><code>top3_id = unlist(product_stats[order(product_stats$size, decreasing = TRUE), &quot;id&quot;])[1:3]
+
+product_info[product_info$id %in% top3_id, ]
+#&gt; # A tibble: 3 x 5
+#&gt;   id    name      type  class   released
+#&gt;   &lt;chr&gt; &lt;chr&gt;     &lt;chr&gt; &lt;chr&gt;   &lt;chr&gt;   
+#&gt; 1 T01   SupCar    toy   vehicle yes     
+#&gt; 2 T02   SupPlane  toy   vehicle no      
+#&gt; 3 M02   AircraftX model vehicle yes</code></pre>
+<p>我们用比较冗长的方式完成了任务。但仔细在想想，两个数据框是通过<code>id</code>连接到一起的，我们可以把它们合并到一起，然后执行提取操作：</p>
+<pre class="r"><code>product_table = merge(product_info, product_stats, by = &quot;id&quot;)
+product_table
+#&gt;    id      name  type   class released material size weight
+#&gt; 1 M01     JeepX model vehicle      yes Plastics   50     NA
+#&gt; 2 M02 AircraftX model vehicle      yes Plastics   85    3.0
+#&gt; 3 M03    Runner model  people      yes     Wood   15     NA
+#&gt; 4 M04    Dancer model  people       no     Wood   16    0.6
+#&gt; 5 T01    SupCar   toy vehicle      yes    Metal  120   10.0
+#&gt; 6 T02  SupPlane   toy vehicle       no    Metal  350   45.0</code></pre>
+<p>现在通过合并的数据框，我们可以根据任意一列排序数据框，而不需要处理其他的表格数据：</p>
+<pre class="r"><code>product_table[order(product_table$size), ]
+#&gt;    id      name  type   class released material size weight
+#&gt; 3 M03    Runner model  people      yes     Wood   15     NA
+#&gt; 4 M04    Dancer model  people       no     Wood   16    0.6
+#&gt; 1 M01     JeepX model vehicle      yes Plastics   50     NA
+#&gt; 2 M02 AircraftX model vehicle      yes Plastics   85    3.0
+#&gt; 5 T01    SupCar   toy vehicle      yes    Metal  120   10.0
+#&gt; 6 T02  SupPlane   toy vehicle       no    Metal  350   45.0</code></pre>
+<p>前面的问题我们也可以利用合并的数据框加以解决：</p>
+<pre class="r"><code>product_table[order(product_table$size, decreasing = TRUE), &quot;name&quot;][1:3]
+#&gt; [1] &quot;SupPlane&quot;  &quot;SupCar&quot;    &quot;AircraftX&quot;</code></pre>
+<p>有时候我们需要生成新数据框来对原始数据基础上进行调整和处理，从而避免破坏原始数据。<code>transform()</code>函数可以帮助我们完成这类任务，例如：</p>
+<pre class="r"><code>transform(product_table,
+          released = ifelse(released == &quot;yes&quot;, TRUE, FALSE),
+          density = weight / size)
+#&gt;    id      name  type   class released material size weight density
+#&gt; 1 M01     JeepX model vehicle     TRUE Plastics   50     NA      NA
+#&gt; 2 M02 AircraftX model vehicle     TRUE Plastics   85    3.0  0.0353
+#&gt; 3 M03    Runner model  people     TRUE     Wood   15     NA      NA
+#&gt; 4 M04    Dancer model  people    FALSE     Wood   16    0.6  0.0375
+#&gt; 5 T01    SupCar   toy vehicle     TRUE    Metal  120   10.0  0.0833
+#&gt; 6 T02  SupPlane   toy vehicle    FALSE    Metal  350   45.0  0.1286</code></pre>
+<p>前面数据中我们看到有一些缺失值（用<code>NA</code>表示），很多时候我们不希望数据出现任何缺失值，因此需要某种办法处理它们。为了演示处理的方法，我们再载入一张包含缺失值的表，包含每件产品的质量、耐久性、防水性的测试结果。</p>
+<pre class="r"><code>product_tests = read_csv(&quot;../../R/dataset/product-tests.csv&quot;)
+#&gt; Parsed with column specification:
+#&gt; cols(
+#&gt;   id = col_character(),
+#&gt;   quality = col_integer(),
+#&gt;   durability = col_integer(),
+#&gt;   waterproof = col_character()
+#&gt; )
+product_tests
+#&gt; # A tibble: 6 x 4
+#&gt;   id    quality durability waterproof
+#&gt;   &lt;chr&gt;   &lt;int&gt;      &lt;int&gt; &lt;chr&gt;     
+#&gt; 1 T01        NA         10 no        
+#&gt; 2 T02        10          9 no        
+#&gt; 3 M01         6          4 yes       
+#&gt; 4 M02         6          5 yes       
+#&gt; 5 M03         5         NA yes       
+#&gt; 6 M04         6          6 yes</code></pre>
+<p><code>na.omit()</code>可以删除所有包含缺失值的行：</p>
+<pre class="r"><code>na.omit(product_tests)
+#&gt; # A tibble: 4 x 4
+#&gt;   id    quality durability waterproof
+#&gt;   &lt;chr&gt;   &lt;int&gt;      &lt;int&gt; &lt;chr&gt;     
+#&gt; 1 T02        10          9 no        
+#&gt; 2 M01         6          4 yes       
+#&gt; 3 M02         6          5 yes       
+#&gt; 4 M04         6          6 yes</code></pre>
+<p>另外，函数<code>complete.cases()</code>可以返回逻辑向量，表明某行是否完整。</p>
+<pre class="r"><code>complete.cases(product_tests)
+#&gt; [1] FALSE  TRUE  TRUE  TRUE FALSE  TRUE</code></pre>
+<p>利用该函数可以筛选数据框，比如获得不含缺失值的<code>id</code>值：</p>
+<pre class="r"><code>product_tests[complete.cases(product_tests), &quot;id&quot;]
+#&gt; # A tibble: 4 x 1
+#&gt;   id   
+#&gt;   &lt;chr&gt;
+#&gt; 1 T02  
+#&gt; 2 M01  
+#&gt; 3 M02  
+#&gt; 4 M04</code></pre>
+<p>前面给出的3个表格有共同的<code>id</code>列，可惜R里面内置函数只能一次合并2个数据框：</p>
+<pre class="r"><code>product_full = merge(product_table, product_tests, by = &quot;id&quot;)
+product_full
+#&gt;    id      name  type   class released material size weight quality
+#&gt; 1 M01     JeepX model vehicle      yes Plastics   50     NA       6
+#&gt; 2 M02 AircraftX model vehicle      yes Plastics   85    3.0       6
+#&gt; 3 M03    Runner model  people      yes     Wood   15     NA       5
+#&gt; 4 M04    Dancer model  people       no     Wood   16    0.6       6
+#&gt; 5 T01    SupCar   toy vehicle      yes    Metal  120   10.0      NA
+#&gt; 6 T02  SupPlane   toy vehicle       no    Metal  350   45.0      10
+#&gt;   durability waterproof
+#&gt; 1          4        yes
+#&gt; 2          5        yes
+#&gt; 3         NA        yes
+#&gt; 4          6        yes
+#&gt; 5         10         no
+#&gt; 6          9         no</code></pre>
+<p>对完全合并好的表格，我们利用<code>tapply()</code>函数（<code>apply</code>家族成员）可以进行统计，该函数专门用于处理表格数据，使用某些方法根据某列队另一列的数据进行统计。</p>
+<p>例如根据type列计算quality列的均值：</p>
+<pre class="r"><code>mean_quality1 = tapply(product_full$quality,
+                       list(product_full$type),
+                       mean, na.rm=TRUE)
+mean_quality1
+#&gt; model   toy 
+#&gt;  5.75 10.00</code></pre>
+<p>返回的结果看起来是个数值向量，我们使用<code>str()</code>看看：</p>
+<pre class="r"><code>str(mean_quality1)
+#&gt;  num [1:2(1d)] 5.75 10
+#&gt;  - attr(*, &quot;dimnames&quot;)=List of 1
+#&gt;   ..$ : chr [1:2] &quot;model&quot; &quot;toy&quot;</code></pre>
+<p><strong>实际上，这是个一维数组</strong>：</p>
+<pre class="r"><code>is.array(mean_quality1)
+#&gt; [1] TRUE</code></pre>
+<p><code>tapply()</code>返回的是一个数组，而不是简单的数值向量，因此可以方便地计算多组操作。</p>
+<p>例如计算每一对<code>type</code>和<code>class</code>组合的<code>quality</code>均值：</p>
+<pre class="r"><code>mean_quality2 = tapply(product_full$quality,
+                       list(product_full$type, product_full$class),
+                       mean, na.rm = TRUE)
+mean_quality2
+#&gt;       people vehicle
+#&gt; model    5.5       6
+#&gt; toy       NA      10</code></pre>
+<p>对于二维数组，我们可以使用两个参数来获取其中的值：</p>
+<pre class="r"><code>typeof(mean_quality2)
+#&gt; [1] &quot;double&quot;
+class(mean_quality2)
+#&gt; [1] &quot;matrix&quot;
+
+mean_quality2[&quot;model&quot;, &quot;vehicle&quot;]
+#&gt; [1] 6</code></pre>
+<p>同理我们可以根据多列分组，使用<code>with()</code>可以避免反复输入<code>product_full</code>：</p>
+<pre class="r"><code>mean_quality3 = with(product_full,
+                     tapply(quality, list(type, material, released),
+                            mean, na.rm = TRUE))
+
+mean_quality3
+#&gt; , , no
+#&gt; 
+#&gt;       Metal Plastics Wood
+#&gt; model    NA       NA    6
+#&gt; toy      10       NA   NA
+#&gt; 
+#&gt; , , yes
+#&gt; 
+#&gt;       Metal Plastics Wood
+#&gt; model    NA        6    5
+#&gt; toy     NaN       NA   NA</code></pre>
+<p>使用3个参数可以获取单元格中的值：</p>
+<pre class="r"><code>mean_quality3[&quot;model&quot;, &quot;Wood&quot;, &quot;yes&quot;]
+#&gt; [1] 5</code></pre>
+</div>
+<div id="reshape2" class="section level3">
+<h3>reshape2重塑数据框</h3>
+<p>前面我们学习了如何筛选、排序、合并和汇总数据框，有时候我们需要做些更复杂的操作。</p>
+<p>例如下面数据包含两种产品不同日期的质量和耐久性的测试结果：</p>
+<pre class="r"><code>toy_tests = read_csv(&quot;../../R/dataset/product-toy-tests.csv&quot;)
+#&gt; Parsed with column specification:
+#&gt; cols(
+#&gt;   id = col_character(),
+#&gt;   date = col_integer(),
+#&gt;   sample = col_integer(),
+#&gt;   quality = col_integer(),
+#&gt;   durability = col_integer()
+#&gt; )
+toy_tests
+#&gt; # A tibble: 8 x 5
+#&gt;   id        date sample quality durability
+#&gt;   &lt;chr&gt;    &lt;int&gt;  &lt;int&gt;   &lt;int&gt;      &lt;int&gt;
+#&gt; 1 T01   20160201    100       9          9
+#&gt; 2 T01   20160302    150      10          9
+#&gt; 3 T01   20160405    180       9         10
+#&gt; 4 T01   20160502    140       9          9
+#&gt; 5 T02   20160201     70       7          9
+#&gt; 6 T02   20160303     75       8          8
+#&gt; 7 T02   20160403     90       9          8
+#&gt; 8 T02   20160502     85      10          9</code></pre>
+<p>如果需要同时比较两种产品的质量和耐久性，这种格式就比较麻烦，如果是下面的格式就好了：</p>
+<pre><code>date    T01 T02
+20160201    9   9
+2016    10  9</code></pre>
+<p><code>reshape2</code>包就是用来搞定这种任务的，如果没有安装，运行下面代码：</p>
+<pre class="r"><code>install.packages(&quot;reshape2&quot;)</code></pre>
+<p>安装成功后，我们就可以使用<code>dcast()</code>来转换数据，用于比较：</p>
+<pre class="r"><code>library(reshape2)
+
+toy_quality = dcast(toy_tests, date ~ id, value.var = &quot;quality&quot;)
+toy_quality
+#&gt;       date T01 T02
+#&gt; 1 20160201   9   7
+#&gt; 2 20160302  10  NA
+#&gt; 3 20160303  NA   8
+#&gt; 4 20160403  NA   9
+#&gt; 5 20160405   9  NA
+#&gt; 6 20160502   9  10</code></pre>
+<p>上述代码重塑了<code>toy_tests</code>让<code>date</code>列被共享，<code>id</code>值被单独分割为列，每个<code>date</code>与<code>id</code>对应的值是<code>quality</code>。</p>
+<p>可以看到数据中存在缺失值，有一种叫<strong>末次观测值结转法（LOCF）</strong>可以填补缺失值，当非缺失值后面紧跟一个缺失值时，就用该缺失值填补后面的缺失值，直到所有缺失值都被填满。<code>zoo</code>包提供了LOCF的一个实现，使用下面代码安装：</p>
+<pre class="r"><code>install.packages(&quot;zoo&quot;)</code></pre>
+<p>下面用一组简单的向量演示：</p>
+<pre class="r"><code>library(zoo)
+#&gt; 
+#&gt; 载入程辑包：&#39;zoo&#39;
+#&gt; The following objects are masked from &#39;package:base&#39;:
+#&gt; 
+#&gt;     as.Date, as.Date.numeric
+na.locf(c(1, 2, NA, NA, 3, 1, NA, 2, NA))
+#&gt; [1] 1 2 2 2 3 1 1 2 2</code></pre>
+<p>同样的方法我们可以应用于现在处理的数据：</p>
+<pre class="r"><code>na.locf(toy_quality$T01)
+#&gt; [1]  9 10 10 10  9  9</code></pre>
+<p>如果需要填补的数据很多，包含上千个产品，更好的做法是使用<code>lapply</code>进行自动分配：</p>
+<pre class="r"><code>toy_quality[-1] = lapply(toy_quality[-1], na.locf )
+toy_quality
+#&gt;       date T01 T02
+#&gt; 1 20160201   9   7
+#&gt; 2 20160302  10   7
+#&gt; 3 20160303  10   8
+#&gt; 4 20160403  10   9
+#&gt; 5 20160405   9   9
+#&gt; 6 20160502   9  10</code></pre>
+</div>
+</div>
