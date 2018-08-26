@@ -299,3 +299,351 @@ toy_quality[-1] = lapply(toy_quality[-1], na.locf )
 toy_quality
 ```
 
+这里数据虽然已经没有了缺失值，但每一行数据的含义却发生了变化。原始数据中产品T01在20160303这天并没有测试，所以这一天的值应该被解释为在此之前的最后一次quality的测试值。另一个问题是两种产品都是按月测试的，但重塑后的数据框没有以固定的频率对其date。
+
+下面方法进问题进行修正。
+
+```{r}
+toy_tests$ym = substr(toy_tests$date, 1, 6)
+toy_tests
+```
+
+我们只提取年月信息，然后利用它进行重塑。
+
+```{r}
+toy_quality = dcast(toy_tests, ym ~ id, value.var = "quality")
+toy_quality
+```
+
+现在，两种产品每月的质量得分自然地展示出来，而且每月缺失值。
+
+有时候，我们需要将**许多列合并为1列**，用于表示被测量的对象，另外用1列存储对应的结果值。下面用`melt()`函数将原始数据两种测量组合到一起：
+
+```{r}
+toy_tests2 = melt(toy_tests, id.vars = c("id", "ym"), 
+                  measure.vars = c("quality", "durability"),
+                  variable.name = "measure")
+toy_tests2
+```
+
+这种格式正是`ggplot2`所喜爱的长格式数据，我们可以来画图：
+
+```{r}
+library(ggplot2)
+
+ggplot(toy_tests2, aes(x = ym, y = value)) + 
+    geom_point() + 
+    facet_grid(id ~ measure)
+```
+
+我们得到了按照产品id和measure分组，以ym为x轴，以value为y轴的散点图，可以清晰对比分组后两种产品质量差异（以年月）。
+
+我们还可以用不同的颜色来表示产品，下图可以给出与上图相同的信息：
+
+```{r}
+ggplot(toy_tests2, aes(x = ym, y = value, color = id)) + 
+    geom_point() + facet_grid(. ~ measure)
+```
+
+
+## 通过sqldf包使用SQL查询数据框
+
+有没有一种方法，能够直接使用SQL进行数据框查询，就像数据框是关系型数据库中的表一样呢？`sqldf`包给出肯定答案。该包吸收了SQLite轻量结构和易于嵌入R会话的优点，可以用下面代码安装：
+
+```{r, eval=FALSE}
+install.packages("sqldf")
+```
+
+首先加载包：
+
+```{r}
+library(sqldf)
+```
+
+注意加载`sqldf`包时，几个依赖包会自动加载进来。**`sql`包的实现依赖这些包，它基本上是在R和SQLite之间传输数据和转换数据类型**。
+
+读入前面使用的产品表格：
+
+```{r}
+product_info = read_csv("../../R/dataset/product-info.csv")
+product_stats = read_csv("../../R/dataset/product-stats.csv")
+product_tests = read_csv("../../R/dataset/product-tests.csv")
+toy_tests = read_csv("../../R/dataset/product-toy-tests.csv")
+```
+
+`sqldf`包的神奇之处在于我们可以使用SQL语句查询工作环境中的数据框，例如：
+
+```{r}
+sqldf("select * from product_info")
+```
+
+sqldf与SQLite一样，支持简单的选择性请求。
+
+比如选择特定列：
+
+```{r}
+sqldf("select id, name, class from product_info")
+```
+
+根据条件筛选记录：
+
+```{r}
+sqldf("select id, name from product_info where released = 'yes' ")
+```
+
+除了基本的数据库操作和分组统计，该包还支持查询多个数据框，比如：
+
+```{r}
+sqldf("select * from product_info join product_stats using (id)")
+```
+
+
+不过sqldf包的缺点也很明显：
+
+1. sqldf默认基于SQLite，因此SQLite的局限性就是该包的局限性，比如内置的分组汇总函数是有限的，而R本身的统计汇总函数要多得多
+2. 不方便动态编程
+3. SQL的限制性也限制了该包，我们难以像操作dplyr包一样用sqldf进行表格数据的操作、变换等等
+
+> 如果你喜欢这个包并想用起来，阅读sqldf更多操作例子：<https://github.com/ggrothendieck/sqldf#examples>
+
+## 使用data.table包操作数据
+
+**`data.table`包提供了一个加强版的`data.frame`，它运行效率极高，而且能够处理适合内存的大数据集，它使用`[]`实现了一种自然地数据操作语法**。使用下面命令进行安装：
+
+```{r, eval=FALSE}
+install.packages("data.table")
+```
+
+
+载入包：
+
+```{r}
+library(data.table)
+```
+
+注意，`data.table`包提供了加强版的`dcast()`和`melt()`，它们的功能更强大、性能更高，内存使用也更高效。
+
+创建`data.table`与创建`data.frame`类似：
+
+```{r}
+dt = data.table(x = 1:3, y = rnorm(3), z = letters[1:3])
+dt
+```
+
+检查它的结构：
+
+```{r}
+str(dt)
+```
+
+可以看到，`dt`的类是`data.table`和`data.frame`，也就是说`data.table`继承了`data.frame`的一些行为，但增强了其他部分。
+
+**`data.table`的基本语法是`dt[i, j, by]，简单说就是使用`i`选择行，用`by`分组，然后计算`j`。**接下来我们看看`data.table`继承了什么，增强了什么。
+
+首先，我们仍然载入之前用到的产品数据，不过这里我们使用`data.table`包提供的`fread()`函数，它非常高效和智能，默认返回`data.table`。
+
+```{r}
+product_info = fread("../../R/dataset/product-info.csv")
+product_stats = fread("../../R/dataset/product-stats.csv")
+product_tests = fread("../../R/dataset/product-tests.csv")
+toy_tests = fread("../../R/dataset/product-toy-tests.csv")
+```
+
+
+
+如果查看表格信息，你会发现它和`data.frame`没什么两样：
+
+```{r}
+product_info
+```
+
+再看结构：
+
+```{r}
+str(product_info)
+```
+
+与`data.frame`不同，如果只提供一个参数用来构建子集，`data.table`是选择行而不是列：
+
+```{r}
+product_info[1]
+
+product_info[1:3]
+```
+
+如果提供的是负数，那么将删除指定的行：
+
+```{r}
+product_info[-1]
+```
+
+**data.table提供了许多特殊符号，它们是data.table的重要组成**。`.N`是最常用的符号之一，它表示当前分组中，对象的数目（就不用调用`nrow`函数啦）。在`[]`使用它指提取最后一行。
+
+```{r}
+product_info[.N]
+```
+
+
+```{r}
+product_info[c(1, .N)]
+```
+
+在对`data.table`构建子集时，能够自动根据语义计算表达式，因此可以直接使用列名，像`with()`和`subset()`那样。
+
+比如：
+
+```{r}
+product_info[released == "yes"]
+```
+
+方括号内的第1个参数是行筛选器，第2个则对筛选后的数据进行适当的计算。
+
+例如提取列：
+
+```{r}
+product_info[released == "yes", id]
+```
+
+在这里使用`"id"`结果不同，返回的必然是个data.table。
+
+```{r}
+product_info[released == "yes", "id"]
+```
+
+第二个参数可以是表达式，例如生成一张表，反应每种`type`和`class`组合中`released`取`yes`的数量：
+
+```{r}
+product_info[released == "yes", table(type, class)]
+```
+
+**要注意，给第2个参数提供`list()`，结果仍然转换为`data.table`**：
+
+```{r}
+product_info[released == "yes", list(id, name)]
+```
+
+我们可以替换原有列，生成新的data.table：
+
+```{r}
+product_info[, list(id, name, released = released == "yes")]
+```
+
+还可以创建新列：
+
+```{r}
+product_stats[, list(id, material, size, weight, density = size/weight)]
+```
+
+**为了简化，data.table使用`.()`作为`list()`的缩写，这两者等价**：
+
+```{r}
+product_info[, .(id, name, type, class)]
+
+product_info[released == "yes", .(id, name)]
+```
+
+提供排序索引可以对记录排序：
+
+```{r}
+product_stats[order(size, decreasing = TRUE)]
+```
+
+**前面都是在构建子集后，又创建新的data.table**。这样挺麻烦的，因此`data.table`包提供了对列进行原地赋值的符号`:=`，例如`product_stats`开始是这样的：
+
+```{r}
+product_stats
+```
+
+使用`:=`直接在上面数据框创建新列：
+
+```{r}
+product_stats[, density := size / weight]
+```
+
+虽然没有任何返回，但数据已经被修改了：
+
+```{r}
+product_stats
+```
+
+使用`:=`替换已有的列：
+
+```{r}
+product_info[, released := released == "yes"]
+product_info
+```
+
+### 使用键获取值
+
+**索引支持**是data.table另一个独特功能，即我们可以创建键（key），使用键获取记录及其高效。
+
+例如，使用`setkey()`将`id`设置为`product_info`中的一个键：
+
+```{r}
+setkey(product_info, id)
+```
+
+同样的，函数无任何返回，但我们已经为原始数据设置了键，而且原来的数据看起来也没变化：
+
+```{r}
+product_info
+```
+
+但键已生成：
+
+```{r}
+key(product_info)
+```
+
+现在我们可以用它来获取数据了，比如提供一个id值：
+
+```{r}
+product_info["M01"]
+```
+
+也可以使用`setkeyv()`来设置键，但它只接受字符向量：
+
+```{r}
+setkeyv(product_stats, "id")
+```
+
+**当`key`是一个动态变化的向量时，这个函数会非常好用**。
+
+```{r}
+product_stats["M02"]
+```
+
+如果两个表格有相同的键，我们可以轻松把他们连接到一起：
+
+```{r}
+product_info[product_stats]
+```
+
+**data.table的键可以不止一个**。例如使用`id`和`date`定位`toy_tests`中的记录：
+
+```{r}
+setkey(toy_tests, id, date)
+```
+
+现在提供key中的两个元素就可以获取记录了
+
+```{r}
+toy_tests[.("T01", 20160201)]
+```
+
+如果提供第一个元素，会返回匹配的多个值：
+
+```{r}
+toy_tests["T01"]
+```
+
+key不能错序，因此不能单独提供第2个元素以及反序排列。
+
+```{r, error=TRUE}
+toy_tests[20160201]
+
+toy_tests[.(20160202,"T01")]
+```
+
+### 对数据分组汇总
+
