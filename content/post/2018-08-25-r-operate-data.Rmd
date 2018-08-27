@@ -645,5 +645,329 @@ toy_tests[20160201]
 toy_tests[.(20160202,"T01")]
 ```
 
-### 对数据分组汇总
+
+### 对数据进行分组汇总
+
+`by`是data.table中另一个重要参数（即方括号内的第3个参数），它可以将数据按照`by`值进行分组，并对分组计算第2个参数。
+
+接下来，我们学习如何通过by以简便的方式实现数据的分组汇总。
+
+最简单的用法是计算每组的记录条数：
+
+```{r}
+product_info[, .N, by = released]
+```
+
+
+分组的变量可以不止一个，例如由`type`和`class`确定一个分组：
+
+```{r}
+product_info[, .N, by = .(type, class)]
+```
+
+可以对每个分组进行统计计算，这里计算防水和非防水产品的质量得分均值：
+
+```{r}
+product_tests[, mean(quality, na.rm = TRUE), by = .(waterproof)]
+```
+
+可以看到结果存储在V1列中，我们可以手动指定列名：
+
+```{r}
+product_tests[, .(mean_quality = mean(quality, na.rm = TRUE)), by = .(waterproof)]
+```
+
+注意操作需要�放在`list`中进行（`.()`）。
+
+我们可以将多个[]按顺序连接起来，形成工作流（类似管道` %>% `）。
+
+下面的例子中，首先使用通用键id将product_info和product_tests连接起来，然后筛选已发布的产品，再按type和class进行分组，最后计算每组的quality和durability的均值。
+
+```{r}
+type_class_test0 = product_info[product_tests][released == TRUE,
+                                               .(mean_quality = mean(quality, na.rm=TRUE),
+                                                 mean_durability = mean(durability, na.rm=TRUE)),
+                                               by = .(type, class)]
+
+type_class_test0
+```
+
+
+在返回的data.table中，by所对应的组合中的值是唯一的，虽然实现了目标，但结果中没有设置键：
+
+```{r}
+key(type_class_test0)
+```
+
+**这种情况下，我们可以使用keyby来确保结果的data.table自动将keyby对应的分组向量设置为键**。一般data.table会保持原来的顺序返回，有时候我们想要设定排序，keyby也可以实现，所以是一举两得：
+
+```{r}
+type_class_test = product_info[product_tests][released == TRUE, 
+                                              .(mean_quality = mean(quality, na.rm = TRUE),
+                                                mean_durability = mean(durability, na.rm = TRUE)),
+                                              keyby = .(type, class)]
+type_class_test
+```
+
+```{r}
+key(type_class_test)
+```
+
+下面可以直接用键来获取值：
+
+```{r}
+type_class_test[.("model", "vehicle"), mean_quality]
+```
+
+**对大数据集使用键进行搜索，能够比迭代使用逻辑比较快得多，因为键搜索利用了二进制搜索，而迭代在不必要的计算上浪费了时间**。
+
+下面举例说明，首先创建有1000万行的数据，其中一列是索引列id，其他两列是随机数：
+
+```{r}
+n = 10000000
+test1 = data.frame(id = 1:n, x = rnorm(n), y = rnorm(n))
+```
+
+现在查找id为876543的行，看要花多少时间：
+
+```{r}
+system.time(row <- test1[test1$id == 876543, ])
+```
+
+作为对比，我们使用`data.table`来完成这个任务，使用`setDT()`将数据框转换为`data.table`，该函数可以原地转换，不需要复制，并可以设定键。
+
+```{r}
+setDT(test1, key = "id")
+class(test1)
+```
+
+现在我们搜索相同的元素：
+
+```{r}
+system.time(row <- test1[.(876543)])
+```
+
+结果一致，但data.table用的时间要少得多。
+
+### 重塑data.table
+
+data.table扩展包为data.table对象提供了更强更快得`dcast()`和`melt()`函数。
+
+例如将toy_tests的每个产品质量得分按照年和月进行对齐
+
+```{r}
+toy_tests[, ym := substr(date, 1, 6)]
+toy_quality = dcast(toy_tests, ym ~ id, value.var = "quality")
+toy_quality
+```
+
+`data.table::dcast()`提供了更强大的多变量支持：
+
+```{r}
+toy_tests2 = data.table::dcast(toy_tests, ym ~ id, value.var = c("quality", "durability"))
+toy_tests2
+```
+
+看到没，data.table可以自动将id值与质量分类连接起来。
+
+此时`ym`是键：
+
+```{r}
+key(toy_tests2)
+```
+
+我们可以利用它提取数据：
+
+```{r}
+toy_tests2["201602"]
+```
+
+### 使用原地设置函数
+
+我们知道R存在复制修改机制，这在进行大数据计算时开销很大，`data.table`提供了一系列支持语义的`set`函数，它们可以原地修改data.table，因此避免不必要的复制。
+
+仍以`product_stats`为例，我们可以使用`setDF()`函数不要任何复制就可以将data.table变成data.frame。
+
+```{r}
+product_stats
+
+setDF(product_stats)
+
+class(product_stats)
+```
+
+`setDT()`可以将任意的data.frame转换为data.table，并设置键。
+
+```{r}
+setDT(product_stats, key = "id")
+class(product_stats)
+```
+
+使用`setnames()`可以对列重命名：
+
+```{r}
+setnames(product_stats, "size", "volume")
+
+product_stats
+```
+
+如果给行添加索引，使用：
+
+```{r}
+product_stats[, i := .I]
+product_stats
+```
+
+为方便，索引一般在第1列，所以我们要修改列的顺序：
+
+```{r}
+setcolorder(product_stats, c("i", "id", "material", "weight", "volume", "density"))
+product_stats
+```
+
+### data.table的动态作用域
+
+我们不仅可以直接使用列，也可以提前定义注入`.N`、`.I`和`.SD`来指代数据中的重要部分。
+
+为演示，我们先创建新的data.table，命名为`market_data`，其中date列是连续的。
+
+```{r}
+market_data = data.table(date = as.Date("2015-05-01") + 0:299)
+head(market_data)
+```
+
+向调用函数一样，我们给data.table添加数据列：
+
+```{r}
+set.seed(123)
+
+market_data[, `:=`(
+    price = round(30 * cumprod(1 + rnorm(300, 0.001, 0.05)), 2),
+    volume = rbinom(300, 5000, 0.8)
+)]
+```
+
+
+注意这里的price和volumn都是服从正态分布的随机数：
+
+```{r}
+head(market_data)
+```
+
+我们以图形的方式展示数据：
+
+```{r}
+plot(price ~ date, data = market_data,
+     type = "l",
+     main = "Market data")
+```
+
+数据准备好后，我们看看动态作用域如何让事情变得简单。
+
+看下时间范围：
+
+```{r}
+market_data[, range(date)]
+```
+
+将数据整合缩减为月度数据：
+
+```{r}
+monthly = market_data[,
+                      .(open = price[[1]], high = max(price),
+                        low = min(price), close = price[[.N]]),
+                      keyby = .(year = year(date), month = month(date))]
+
+head(monthly)
+```
+
+计算过程为：**先根据by表达式将原始数据分割，分割后的每个部分都是原始数据的一个子集，并且原始数据和子集都是data.table。然后在每个子集data.table的语义中计算j表达式**。
+
+下面代码没有按组聚合数据，而是画了每年的价格图：
+
+```{r}
+oldpar = par(mfrow = c(1, 2))
+market_data[, {
+    plot(price ~ date, type = "l",
+         main = sprintf("Market data (%d)", year))
+}, by = .(year = year(date))]
+par(oldpar)
+```
+
+这里我们没有为`plot()`设定data参数，图像也成功绘制，这是因为该操作是在data.table的语义中进行的。
+
+此外,j表达式还可以用于构建模型的代码，下面是一个批量拟合线性模型的例子。这里使用`diamonds`数据集。
+
+
+```{r}
+data("diamonds", package = "ggplot2")
+
+setDT(diamonds)
+head(diamonds)
+```
+
+该数据集包含超过5万条钻石信息的记录，每条记录了钻石的10个属性，现在我们队cut列中的每种切割类型都你拟合一个线性回归模型，由此观察每种切割类型中carat与depth是如何反映log(price)的信息。
+
+```{r}
+diamonds[, {
+    m = lm(log(price) ~ carat + depth)
+    as.list(coef(m))
+}, keyby = .(cut)]
+```
+
+**动态作用域允许我们组合使用data.table内部或外部预定义的符号**。举例，我们定义一个函数，计算market_data中由用户定义的列的年度均值：
+
+```{r}
+average = function(column){
+    market_data[, .(average = mean(.SD[[column]])),
+                by = .(year = year(date))]
+}
+```
+
+这里我们使用`.SD[[x]]`提取x列的值，这跟通过名字从列表中提取成分或元素相同。
+
+下面计算每年的平均价格：
+
+```{r}
+average("price")
+```
+
+每年平均数量：
+
+```{r}
+average("volume")
+```
+
+我们可以利用此包专门的语法创造一个列数动态变化的组合，并且组合中的列是由动态变化的名称决定的。
+
+这里我们假设添加额外的3列数据，每一列都是原始价格加了随机噪声生成的。不用重复调用`market_date[, price1 := ...]`，而是使用`market_data[, (columns) := list(...)]`来动态设定列，其中`columns`是一个包含列名的字符向量，`list(...)`是每个列对应的值：
+
+```{r}
+price_cols = paste0("price", 1:3)
+market_data[, (price_cols) := lapply(1:3,
+                                     function(i) round(price + rnorm(.N, 0, 5), 2))]
+head(market_data)
+```
+
+另一方面，如果表格有很多列，并且需要对它们的子集进行一些计算，也可以用类似的语法来解决。
+
+举例，我们现在需要对每个价格列调用`na.locf()`以去掉缺失值，先获取所有的价格列：
+
+```{r}
+cols = colnames(market_data)
+
+price_cols = cols[grep("^price", cols)]
+
+price_cols
+```
+
+然后我们用类似的语法，并添加一个参数`.SDcols = price_cols`，这是为了让`.SD`中的列只是我们想要的那些价格列。
+
+```{r}
+market_data[, (price_cols) := lapply(.SD, zoo::na.locf), .SDcols =  price_cols]
+
+head(market_data)
+```
+
+最后，更多操作请前往<https://github.com/Rdatatable/data.table/wiki>查看完整功能列表。
 
