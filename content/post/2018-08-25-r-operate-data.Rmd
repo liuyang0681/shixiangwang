@@ -438,7 +438,7 @@ str(dt)
 
 可以看到，`dt`的类是`data.table`和`data.frame`，也就是说`data.table`继承了`data.frame`的一些行为，但增强了其他部分。
 
-**`data.table`的基本语法是`dt[i, j, by]，简单说就是使用`i`选择行，用`by`分组，然后计算`j`。**接下来我们看看`data.table`继承了什么，增强了什么。
+**`data.table`的基本语法是`dt[i, j, by]，简单说就是使用`i`选择行，用`by`分组，然后计算`j`**。接下来我们看看`data.table`继承了什么，增强了什么。
 
 首先，我们仍然载入之前用到的产品数据，不过这里我们使用`data.table`包提供的`fread()`函数，它非常高效和智能，默认返回`data.table`。
 
@@ -970,4 +970,96 @@ head(market_data)
 ```
 
 最后，更多操作请前往<https://github.com/Rdatatable/data.table/wiki>查看完整功能列表。
+
+## 使用dplyr操作数据框
+
+关于dplyr的基本操作我已经写过很多笔记了，不再赘述，想学习的读者请参阅下面几篇文章，这部分我只挑没接触过的学习下。
+
+* [r<-基础|分析】初学者学习tidyverse](https://www.jianshu.com/p/f3c21a5ad10a)
+* [【r<-数据分析】使用dplyr（1）：介绍与filter操作](https://www.jianshu.com/p/94faed25ff7a)及后续
+* 高级操作：[【r<-高级|dplyr】dplyr编程，quote与unquote](https://www.jianshu.com/p/5eca388205d4)
+
+与`data.table`类似，`dplyr`也提供了`do()`函数来对每组数据进行任意操作。
+
+例如将`diamonds`按`cut`分组，每组都按`log(price) ~ carat`拟合一个线性模型。和`data.table`不同的是，我们需要为操作指定一个名称，以便将结果存储在列中。而且`do()`表达式不能直接在分组数据的语义下计算 ，我们需要使用`.`来表示数据。
+
+```{r}
+data("diamonds", package = "ggplot2")
+models = diamonds %>% 
+    group_by(cut) %>% 
+    do(lmod = lm(log(price) ~ carat, data = .))
+models
+```
+
+注意结果创建了一个新列，该列不是典型的原子向量，每个元素都是模型的结果，包含线性回归对象的列表。我们可以通过索引来提取模型结果：
+
+```{r}
+models$lmod[[1]]
+```
+
+**在需要完成高度定制的操作时，`do()`的优势非常明显**。下面举例。
+
+**假如我们需要分析`toy_tests`数据，要对每种产品的质量和耐久性进行汇总。如果只需要样本数最多的3个测试记录，并且每个产品的质量和耐久性是经样本数加权的平均数**，下面是做法。
+
+```{r}
+toy_tests %>% 
+    group_by(id) %>% 
+    arrange(desc(sample)) %>% 
+    do(head(., 3)) %>% 
+    summarise(
+        quality = sum(quality * sample) / sum(sample),
+        durability = sum(durability * sample) / sum(sample)
+    )
+```
+
+为了查看中间结果，可以运行`do()`之前的代码：
+
+```{r}
+toy_tests %>% 
+    group_by(id) %>% 
+    arrange(desc(sample))
+```
+
+## 使用rlist包处理嵌套数据结构
+
+在R中，最常见的嵌套数据结构是列表对象，之前关注的都是操作表格数据，这部分我们一起玩转**`rlist`包，它是针对非表格数据设计的包**。
+
+`rlist`的设计与`dplyr`非常相似，它提供了针对列表对象的映射、筛选、选择、排序和聚合功能。
+
+安装：
+
+```{r, eval=FALSE}
+install.packages("rlist")
+```
+
+载入：
+
+```{r}
+library(rlist)
+```
+
+
+**为了把数据以列表形式载入R，我们需要用`jsonlite::fromJSON()`或者直接使用`rlist`提供的`list.load()`函数**（这里我找不到原作者的数据文件，所以自己谷歌找了类似的学习下）：
+
+```{r}
+products = list.load("../../R/dataset/products.json")
+```
+
+`products`的每个成分都包含产品所有信息，使用`list.map()`可以在每个成分的语义中计算表达式：
+
+```{r}
+str(list.map(products, id))
+```
+
+`list.mapv()`简化这个列表，返回一个向量：
+
+```{r}
+list.mapv(products, name)
+```
+
+为了对products进行筛选，我们可以使用`list.filter()`，只有所有条件都为`TRUE`的`products`元素才会被返回：
+
+```{r}
+
+```
 
