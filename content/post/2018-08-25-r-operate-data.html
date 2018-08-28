@@ -516,14 +516,14 @@ toy_tests = read_csv(&quot;../../R/dataset/product-toy-tests.csv&quot;)
 <pre class="r"><code>dt = data.table(x = 1:3, y = rnorm(3), z = letters[1:3])
 dt
 #&gt;    x      y z
-#&gt; 1: 1 -0.824 a
-#&gt; 2: 2 -0.743 b
-#&gt; 3: 3  0.560 c</code></pre>
+#&gt; 1: 1  0.906 a
+#&gt; 2: 2 -0.154 b
+#&gt; 3: 3  0.608 c</code></pre>
 <p>检查它的结构：</p>
 <pre class="r"><code>str(dt)
 #&gt; Classes &#39;data.table&#39; and &#39;data.frame&#39;:   3 obs. of  3 variables:
 #&gt;  $ x: int  1 2 3
-#&gt;  $ y: num  -0.824 -0.743 0.56
+#&gt;  $ y: num  0.906 -0.154 0.608
 #&gt;  $ z: chr  &quot;a&quot; &quot;b&quot; &quot;c&quot;
 #&gt;  - attr(*, &quot;.internal.selfref&quot;)=&lt;externalptr&gt;</code></pre>
 <p>可以看到，<code>dt</code>的类是<code>data.table</code>和<code>data.frame</code>，也就是说<code>data.table</code>继承了<code>data.frame</code>的一些行为，但增强了其他部分。</p>
@@ -740,6 +740,293 @@ toy_tests[.(20160202,&quot;T01&quot;)]
 #&gt; Error in bmerge(i, x, leftcols, rightcols, io, xo, roll, rollends, nomatch, : x.&#39;id&#39; is a character column being joined to i.&#39;V1&#39; which is type &#39;double&#39;. Character columns must join to factor or character columns.</code></pre>
 </div>
 <div class="section level3">
-<h3>对数据分组汇总</h3>
+<h3>对数据进行分组汇总</h3>
+<p><code>by</code>是data.table中另一个重要参数（即方括号内的第3个参数），它可以将数据按照<code>by</code>值进行分组，并对分组计算第2个参数。</p>
+<p>接下来，我们学习如何通过by以简便的方式实现数据的分组汇总。</p>
+<p>最简单的用法是计算每组的记录条数：</p>
+<pre class="r"><code>product_info[, .N, by = released]
+#&gt;    released N
+#&gt; 1:     TRUE 4
+#&gt; 2:    FALSE 2</code></pre>
+<p>分组的变量可以不止一个，例如由<code>type</code>和<code>class</code>确定一个分组：</p>
+<pre class="r"><code>product_info[, .N, by = .(type, class)]
+#&gt;     type   class N
+#&gt; 1: model vehicle 2
+#&gt; 2: model  people 2
+#&gt; 3:   toy vehicle 2</code></pre>
+<p>可以对每个分组进行统计计算，这里计算防水和非防水产品的质量得分均值：</p>
+<pre class="r"><code>product_tests[, mean(quality, na.rm = TRUE), by = .(waterproof)]
+#&gt;    waterproof    V1
+#&gt; 1:         no 10.00
+#&gt; 2:        yes  5.75</code></pre>
+<p>可以看到结果存储在V1列中，我们可以手动指定列名：</p>
+<pre class="r"><code>product_tests[, .(mean_quality = mean(quality, na.rm = TRUE)), by = .(waterproof)]
+#&gt;    waterproof mean_quality
+#&gt; 1:         no        10.00
+#&gt; 2:        yes         5.75</code></pre>
+<p>注意操作需要�放在<code>list</code>中进行（<code>.()</code>）。</p>
+<p>我们可以将多个[]按顺序连接起来，形成工作流（类似管道<code>%&gt;%</code>）。</p>
+<p>下面的例子中，首先使用通用键id将product_info和product_tests连接起来，然后筛选已发布的产品，再按type和class进行分组，最后计算每组的quality和durability的均值。</p>
+<pre class="r"><code>type_class_test0 = product_info[product_tests][released == TRUE,
+                                               .(mean_quality = mean(quality, na.rm=TRUE),
+                                                 mean_durability = mean(durability, na.rm=TRUE)),
+                                               by = .(type, class)]
+
+type_class_test0
+#&gt;     type   class mean_quality mean_durability
+#&gt; 1:   toy vehicle          NaN            10.0
+#&gt; 2: model vehicle            6             4.5
+#&gt; 3: model  people            5             NaN</code></pre>
+<p>在返回的data.table中，by所对应的组合中的值是唯一的，虽然实现了目标，但结果中没有设置键：</p>
+<pre class="r"><code>key(type_class_test0)
+#&gt; NULL</code></pre>
+<p><strong>这种情况下，我们可以使用keyby来确保结果的data.table自动将keyby对应的分组向量设置为键</strong>。一般data.table会保持原来的顺序返回，有时候我们想要设定排序，keyby也可以实现，所以是一举两得：</p>
+<pre class="r"><code>type_class_test = product_info[product_tests][released == TRUE, 
+                                              .(mean_quality = mean(quality, na.rm = TRUE),
+                                                mean_durability = mean(durability, na.rm = TRUE)),
+                                              keyby = .(type, class)]
+type_class_test
+#&gt;     type   class mean_quality mean_durability
+#&gt; 1: model  people            5             NaN
+#&gt; 2: model vehicle            6             4.5
+#&gt; 3:   toy vehicle          NaN            10.0</code></pre>
+<pre class="r"><code>key(type_class_test)
+#&gt; [1] &quot;type&quot;  &quot;class&quot;</code></pre>
+<p>下面可以直接用键来获取值：</p>
+<pre class="r"><code>type_class_test[.(&quot;model&quot;, &quot;vehicle&quot;), mean_quality]
+#&gt; [1] 6</code></pre>
+<p><strong>对大数据集使用键进行搜索，能够比迭代使用逻辑比较快得多，因为键搜索利用了二进制搜索，而迭代在不必要的计算上浪费了时间</strong>。</p>
+<p>下面举例说明，首先创建有1000万行的数据，其中一列是索引列id，其他两列是随机数：</p>
+<pre class="r"><code>n = 10000000
+test1 = data.frame(id = 1:n, x = rnorm(n), y = rnorm(n))</code></pre>
+<p>现在查找id为876543的行，看要花多少时间：</p>
+<pre class="r"><code>system.time(row &lt;- test1[test1$id == 876543, ])
+#&gt;  用户  系统  流逝 
+#&gt; 0.132 0.018 0.150</code></pre>
+<p>作为对比，我们使用<code>data.table</code>来完成这个任务，使用<code>setDT()</code>将数据框转换为<code>data.table</code>，该函数可以原地转换，不需要复制，并可以设定键。</p>
+<pre class="r"><code>setDT(test1, key = &quot;id&quot;)
+class(test1)
+#&gt; [1] &quot;data.table&quot; &quot;data.frame&quot;</code></pre>
+<p>现在我们搜索相同的元素：</p>
+<pre class="r"><code>system.time(row &lt;- test1[.(876543)])
+#&gt;  用户  系统  流逝 
+#&gt; 0.001 0.000 0.000</code></pre>
+<p>结果一致，但data.table用的时间要少得多。</p>
+</div>
+<div id="data.table" class="section level3">
+<h3>重塑data.table</h3>
+<p>data.table扩展包为data.table对象提供了更强更快得<code>dcast()</code>和<code>melt()</code>函数。</p>
+<p>例如将toy_tests的每个产品质量得分按照年和月进行对齐</p>
+<pre class="r"><code>toy_tests[, ym := substr(date, 1, 6)]
+toy_quality = dcast(toy_tests, ym ~ id, value.var = &quot;quality&quot;)
+toy_quality
+#&gt;        ym T01 T02
+#&gt; 1: 201602   9   7
+#&gt; 2: 201603  10   8
+#&gt; 3: 201604   9   9
+#&gt; 4: 201605   9  10</code></pre>
+<p><code>data.table::dcast()</code>提供了更强大的多变量支持：</p>
+<pre class="r"><code>toy_tests2 = data.table::dcast(toy_tests, ym ~ id, value.var = c(&quot;quality&quot;, &quot;durability&quot;))
+toy_tests2
+#&gt;        ym quality_T01 quality_T02 durability_T01 durability_T02
+#&gt; 1: 201602           9           7              9              9
+#&gt; 2: 201603          10           8              9              8
+#&gt; 3: 201604           9           9             10              8
+#&gt; 4: 201605           9          10              9              9</code></pre>
+<p>看到没，data.table可以自动将id值与质量分类连接起来。</p>
+<p>此时<code>ym</code>是键：</p>
+<pre class="r"><code>key(toy_tests2)
+#&gt; [1] &quot;ym&quot;</code></pre>
+<p>我们可以利用它提取数据：</p>
+<pre class="r"><code>toy_tests2[&quot;201602&quot;]
+#&gt;        ym quality_T01 quality_T02 durability_T01 durability_T02
+#&gt; 1: 201602           9           7              9              9</code></pre>
+</div>
+<div class="section level3">
+<h3>使用原地设置函数</h3>
+<p>我们知道R存在复制修改机制，这在进行大数据计算时开销很大，<code>data.table</code>提供了一系列支持语义的<code>set</code>函数，它们可以原地修改data.table，因此避免不必要的复制。</p>
+<p>仍以<code>product_stats</code>为例，我们可以使用<code>setDF()</code>函数不要任何复制就可以将data.table变成data.frame。</p>
+<pre class="r"><code>product_stats
+#&gt;     id material size weight density
+#&gt; 1: M01 Plastics   50     NA      NA
+#&gt; 2: M02 Plastics   85    3.0   28.33
+#&gt; 3: M03     Wood   15     NA      NA
+#&gt; 4: M04     Wood   16    0.6   26.67
+#&gt; 5: T01    Metal  120   10.0   12.00
+#&gt; 6: T02    Metal  350   45.0    7.78
+
+setDF(product_stats)
+
+class(product_stats)
+#&gt; [1] &quot;data.frame&quot;</code></pre>
+<p><code>setDT()</code>可以将任意的data.frame转换为data.table，并设置键。</p>
+<pre class="r"><code>setDT(product_stats, key = &quot;id&quot;)
+class(product_stats)
+#&gt; [1] &quot;data.table&quot; &quot;data.frame&quot;</code></pre>
+<p>使用<code>setnames()</code>可以对列重命名：</p>
+<pre class="r"><code>setnames(product_stats, &quot;size&quot;, &quot;volume&quot;)
+
+product_stats
+#&gt;     id material volume weight density
+#&gt; 1: M01 Plastics     50     NA      NA
+#&gt; 2: M02 Plastics     85    3.0   28.33
+#&gt; 3: M03     Wood     15     NA      NA
+#&gt; 4: M04     Wood     16    0.6   26.67
+#&gt; 5: T01    Metal    120   10.0   12.00
+#&gt; 6: T02    Metal    350   45.0    7.78</code></pre>
+<p>如果给行添加索引，使用：</p>
+<pre class="r"><code>product_stats[, i := .I]
+product_stats
+#&gt;     id material volume weight density i
+#&gt; 1: M01 Plastics     50     NA      NA 1
+#&gt; 2: M02 Plastics     85    3.0   28.33 2
+#&gt; 3: M03     Wood     15     NA      NA 3
+#&gt; 4: M04     Wood     16    0.6   26.67 4
+#&gt; 5: T01    Metal    120   10.0   12.00 5
+#&gt; 6: T02    Metal    350   45.0    7.78 6</code></pre>
+<p>为方便，索引一般在第1列，所以我们要修改列的顺序：</p>
+<pre class="r"><code>setcolorder(product_stats, c(&quot;i&quot;, &quot;id&quot;, &quot;material&quot;, &quot;weight&quot;, &quot;volume&quot;, &quot;density&quot;))
+product_stats
+#&gt;    i  id material weight volume density
+#&gt; 1: 1 M01 Plastics     NA     50      NA
+#&gt; 2: 2 M02 Plastics    3.0     85   28.33
+#&gt; 3: 3 M03     Wood     NA     15      NA
+#&gt; 4: 4 M04     Wood    0.6     16   26.67
+#&gt; 5: 5 T01    Metal   10.0    120   12.00
+#&gt; 6: 6 T02    Metal   45.0    350    7.78</code></pre>
+</div>
+<div id="data.table" class="section level3">
+<h3>data.table的动态作用域</h3>
+<p>我们不仅可以直接使用列，也可以提前定义注入<code>.N</code>、<code>.I</code>和<code>.SD</code>来指代数据中的重要部分。</p>
+<p>为演示，我们先创建新的data.table，命名为<code>market_data</code>，其中date列是连续的。</p>
+<pre class="r"><code>market_data = data.table(date = as.Date(&quot;2015-05-01&quot;) + 0:299)
+head(market_data)
+#&gt;          date
+#&gt; 1: 2015-05-01
+#&gt; 2: 2015-05-02
+#&gt; 3: 2015-05-03
+#&gt; 4: 2015-05-04
+#&gt; 5: 2015-05-05
+#&gt; 6: 2015-05-06</code></pre>
+<p>向调用函数一样，我们给data.table添加数据列：</p>
+<pre class="r"><code>set.seed(123)
+
+market_data[, `:=`(
+    price = round(30 * cumprod(1 + rnorm(300, 0.001, 0.05)), 2),
+    volume = rbinom(300, 5000, 0.8)
+)]</code></pre>
+<p>注意这里的price和volumn都是服从正态分布的随机数：</p>
+<pre class="r"><code>head(market_data)
+#&gt;          date price volume
+#&gt; 1: 2015-05-01  29.2   4021
+#&gt; 2: 2015-05-02  28.9   4000
+#&gt; 3: 2015-05-03  31.2   4033
+#&gt; 4: 2015-05-04  31.3   4036
+#&gt; 5: 2015-05-05  31.5   3995
+#&gt; 6: 2015-05-06  34.3   3955</code></pre>
+<p>我们以图形的方式展示数据：</p>
+<pre class="r"><code>plot(price ~ date, data = market_data,
+     type = &quot;l&quot;,
+     main = &quot;Market data&quot;)</code></pre>
+<p><img src="/post/2018-08-25-r-operate-data_files/figure-html/unnamed-chunk-107-1.png" width="672" /></p>
+<p>数据准备好后，我们看看动态作用域如何让事情变得简单。</p>
+<p>看下时间范围：</p>
+<pre class="r"><code>market_data[, range(date)]
+#&gt; [1] &quot;2015-05-01&quot; &quot;2016-02-24&quot;</code></pre>
+<p>将数据整合缩减为月度数据：</p>
+<pre class="r"><code>monthly = market_data[,
+                      .(open = price[[1]], high = max(price),
+                        low = min(price), close = price[[.N]]),
+                      keyby = .(year = year(date), month = month(date))]
+
+head(monthly)
+#&gt;    year month open high  low close
+#&gt; 1: 2015     5 29.2 37.7 26.1  28.4
+#&gt; 2: 2015     6 28.1 37.6 28.1  37.2
+#&gt; 3: 2015     7 36.3 41.0 32.1  41.0
+#&gt; 4: 2015     8 41.5 50.0 30.9  30.9
+#&gt; 5: 2015     9 30.5 34.5 22.9  27.0
+#&gt; 6: 2015    10 25.7 33.2 24.6  29.3</code></pre>
+<p>计算过程为：<strong>先根据by表达式将原始数据分割，分割后的每个部分都是原始数据的一个子集，并且原始数据和子集都是data.table。然后在每个子集data.table的语义中计算j表达式</strong>。</p>
+<p>下面代码没有按组聚合数据，而是画了每年的价格图：</p>
+<pre class="r"><code>oldpar = par(mfrow = c(1, 2))
+market_data[, {
+    plot(price ~ date, type = &quot;l&quot;,
+         main = sprintf(&quot;Market data (%d)&quot;, year))
+}, by = .(year = year(date))]
+par(oldpar)</code></pre>
+<p>这里我们没有为<code>plot()</code>设定data参数，图像也成功绘制，这是因为该操作是在data.table的语义中进行的。</p>
+<p>此外,j表达式还可以用于构建模型的代码，下面是一个批量拟合线性模型的例子。这里使用<code>diamonds</code>数据集。</p>
+<pre class="r"><code>data(&quot;diamonds&quot;, package = &quot;ggplot2&quot;)
+
+setDT(diamonds)
+head(diamonds)
+#&gt;    carat       cut color clarity depth table price    x    y    z
+#&gt; 1:  0.23     Ideal     E     SI2  61.5    55   326 3.95 3.98 2.43
+#&gt; 2:  0.21   Premium     E     SI1  59.8    61   326 3.89 3.84 2.31
+#&gt; 3:  0.23      Good     E     VS1  56.9    65   327 4.05 4.07 2.31
+#&gt; 4:  0.29   Premium     I     VS2  62.4    58   334 4.20 4.23 2.63
+#&gt; 5:  0.31      Good     J     SI2  63.3    58   335 4.34 4.35 2.75
+#&gt; 6:  0.24 Very Good     J    VVS2  62.8    57   336 3.94 3.96 2.48</code></pre>
+<p>该数据集包含超过5万条钻石信息的记录，每条记录了钻石的10个属性，现在我们队cut列中的每种切割类型都你拟合一个线性回归模型，由此观察每种切割类型中carat与depth是如何反映log(price)的信息。</p>
+<pre class="r"><code>diamonds[, {
+    m = lm(log(price) ~ carat + depth)
+    as.list(coef(m))
+}, keyby = .(cut)]
+#&gt;          cut (Intercept) carat    depth
+#&gt; 1:      Fair        7.73  1.26 -0.01498
+#&gt; 2:      Good        7.08  1.97 -0.01460
+#&gt; 3: Very Good        6.29  2.09 -0.00289
+#&gt; 4:   Premium        5.93  1.85  0.00594
+#&gt; 5:     Ideal        8.50  2.13 -0.03808</code></pre>
+<p><strong>动态作用域允许我们组合使用data.table内部或外部预定义的符号</strong>。举例，我们定义一个函数，计算market_data中由用户定义的列的年度均值：</p>
+<pre class="r"><code>average = function(column){
+    market_data[, .(average = mean(.SD[[column]])),
+                by = .(year = year(date))]
+}</code></pre>
+<p>这里我们使用<code>.SD[[x]]</code>提取x列的值，这跟通过名字从列表中提取成分或元素相同。</p>
+<p>下面计算每年的平均价格：</p>
+<pre class="r"><code>average(&quot;price&quot;)
+#&gt;    year average
+#&gt; 1: 2015    32.3
+#&gt; 2: 2016    32.4</code></pre>
+<p>每年平均数量：</p>
+<pre class="r"><code>average(&quot;volume&quot;)
+#&gt;    year average
+#&gt; 1: 2015    4000
+#&gt; 2: 2016    4003</code></pre>
+<p>我们可以利用此包专门的语法创造一个列数动态变化的组合，并且组合中的列是由动态变化的名称决定的。</p>
+<p>这里我们假设添加额外的3列数据，每一列都是原始价格加了随机噪声生成的。不用重复调用<code>market_date[, price1 := ...]</code>，而是使用<code>market_data[, (columns) := list(...)]</code>来动态设定列，其中<code>columns</code>是一个包含列名的字符向量，<code>list(...)</code>是每个列对应的值：</p>
+<pre class="r"><code>price_cols = paste0(&quot;price&quot;, 1:3)
+market_data[, (price_cols) := lapply(1:3,
+                                     function(i) round(price + rnorm(.N, 0, 5), 2))]
+head(market_data)
+#&gt;          date price volume price1 price2 price3
+#&gt; 1: 2015-05-01  29.2   4021   30.6   27.4   33.2
+#&gt; 2: 2015-05-02  28.9   4000   29.7   20.4   36.0
+#&gt; 3: 2015-05-03  31.2   4033   34.3   26.9   27.2
+#&gt; 4: 2015-05-04  31.3   4036   29.3   29.0   28.0
+#&gt; 5: 2015-05-05  31.5   3995   36.0   32.1   34.8
+#&gt; 6: 2015-05-06  34.3   3955   30.1   31.0   35.2</code></pre>
+<p>另一方面，如果表格有很多列，并且需要对它们的子集进行一些计算，也可以用类似的语法来解决。</p>
+<p>举例，我们现在需要对每个价格列调用<code>na.locf()</code>以去掉缺失值，先获取所有的价格列：</p>
+<pre class="r"><code>cols = colnames(market_data)
+
+price_cols = cols[grep(&quot;^price&quot;, cols)]
+
+price_cols
+#&gt; [1] &quot;price&quot;  &quot;price1&quot; &quot;price2&quot; &quot;price3&quot;</code></pre>
+<p>然后我们用类似的语法，并添加一个参数<code>.SDcols = price_cols</code>，这是为了让<code>.SD</code>中的列只是我们想要的那些价格列。</p>
+<pre class="r"><code>market_data[, (price_cols) := lapply(.SD, zoo::na.locf), .SDcols =  price_cols]
+
+head(market_data)
+#&gt;          date price volume price1 price2 price3
+#&gt; 1: 2015-05-01  29.2   4021   30.6   27.4   33.2
+#&gt; 2: 2015-05-02  28.9   4000   29.7   20.4   36.0
+#&gt; 3: 2015-05-03  31.2   4033   34.3   26.9   27.2
+#&gt; 4: 2015-05-04  31.3   4036   29.3   29.0   28.0
+#&gt; 5: 2015-05-05  31.5   3995   36.0   32.1   34.8
+#&gt; 6: 2015-05-06  34.3   3955   30.1   31.0   35.2</code></pre>
+<p>最后，更多操作请前往<a href="https://github.com/Rdatatable/data.table/wiki" class="uri">https://github.com/Rdatatable/data.table/wiki</a>查看完整功能列表。</p>
 </div>
 </div>

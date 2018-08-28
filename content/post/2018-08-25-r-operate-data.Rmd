@@ -885,7 +885,7 @@ head(monthly)
 
 下面代码没有按组聚合数据，而是画了每年的价格图：
 
-```{r}
+```{r, eval=FALSE}
 oldpar = par(mfrow = c(1, 2))
 market_data[, {
     plot(price ~ date, type = "l",
