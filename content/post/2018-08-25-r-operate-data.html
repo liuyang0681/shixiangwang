@@ -525,15 +525,15 @@ toy_tests = read_csv(&quot;../../R/dataset/product-toy-tests.csv&quot;)
 <p>创建<code>data.table</code>与创建<code>data.frame</code>类似：</p>
 <pre class="r"><code>dt = data.table(x = 1:3, y = rnorm(3), z = letters[1:3])
 dt
-#&gt;    x      y z
-#&gt; 1: 1  0.935 a
-#&gt; 2: 2 -0.425 b
-#&gt; 3: 3  1.053 c</code></pre>
+#&gt;    x     y z
+#&gt; 1: 1 0.819 a
+#&gt; 2: 2 0.426 b
+#&gt; 3: 3 0.289 c</code></pre>
 <p>检查它的结构：</p>
 <pre class="r"><code>str(dt)
 #&gt; Classes &#39;data.table&#39; and &#39;data.frame&#39;:   3 obs. of  3 variables:
 #&gt;  $ x: int  1 2 3
-#&gt;  $ y: num  0.935 -0.425 1.053
+#&gt;  $ y: num  0.819 0.426 0.289
 #&gt;  $ z: chr  &quot;a&quot; &quot;b&quot; &quot;c&quot;
 #&gt;  - attr(*, &quot;.internal.selfref&quot;)=&lt;externalptr&gt;</code></pre>
 <p>可以看到，<code>dt</code>的类是<code>data.table</code>和<code>data.frame</code>，也就是说<code>data.table</code>继承了<code>data.frame</code>的一些行为，但增强了其他部分。</p>
@@ -812,7 +812,7 @@ test1 = data.frame(id = 1:n, x = rnorm(n), y = rnorm(n))</code></pre>
 <p>现在查找id为876543的行，看要花多少时间：</p>
 <pre class="r"><code>system.time(row &lt;- test1[test1$id == 876543, ])
 #&gt;  用户  系统  流逝 
-#&gt; 0.140 0.017 0.157</code></pre>
+#&gt; 0.152 0.020 0.172</code></pre>
 <p>作为对比，我们使用<code>data.table</code>来完成这个任务，使用<code>setDT()</code>将数据框转换为<code>data.table</code>，该函数可以原地转换，不需要复制，并可以设定键。</p>
 <pre class="r"><code>setDT(test1, key = &quot;id&quot;)
 class(test1)
@@ -1211,4 +1211,605 @@ models
 #&gt; [61] &quot;Tibetan Black Quartz&quot; &quot;Tiger Eye&quot;            &quot;Titanium Quartz&quot;     
 #&gt; [64] &quot;Tourmalined Quartz&quot;   &quot;Turquoise&quot;            &quot;Vanadinite&quot;</code></pre>
 <p>为了对products进行筛选，我们可以使用<code>list.filter()</code>，只有所有条件都为<code>TRUE</code>的<code>products</code>元素才会被返回：</p>
+<pre class="r"><code>liveTRUE = list.filter(products, livemode = TRUE)
+list.mapv(liveTRUE, name)
+#&gt;  [1] &quot;Amazonite&quot;            &quot;Amber&quot;                &quot;Amethyst&quot;            
+#&gt;  [4] &quot;Ametrine&quot;             &quot;Apophyllite&quot;          &quot;Aquamarine&quot;          
+#&gt;  [7] &quot;Aragonite&quot;            &quot;Azurite&quot;              &quot;Barite&quot;              
+#&gt; [10] &quot;Bismuth&quot;              &quot;Black Tourmaline&quot;     &quot;Bloodstone&quot;          
+#&gt; [13] &quot;Blue Calcite&quot;         &quot;Blue Kyanite&quot;         &quot;Carnelian&quot;           
+#&gt; [16] &quot;Celestite&quot;            &quot;Chrysocolla&quot;          &quot;Chrysoprase&quot;         
+#&gt; [19] &quot;Citrine&quot;              &quot;Copper&quot;               &quot;Dalmatian Stone&quot;     
+#&gt; [22] &quot;Danburite&quot;            &quot;Desert Rose&quot;          &quot;Emerald&quot;             
+#&gt; [25] &quot;Epidote&quot;              &quot;Fluorite&quot;             &quot;Garnet&quot;              
+#&gt; [28] &quot;Green Calcite&quot;        &quot;Hematite&quot;             &quot;Honey Calcite&quot;       
+#&gt; [31] &quot;Howlite&quot;              &quot;Jasper&quot;               &quot;Jet&quot;                 
+#&gt; [34] &quot;Kunzite&quot;              &quot;Labradorite&quot;          &quot;Lapis Lazuli&quot;        
+#&gt; [37] &quot;Lemon Quartz&quot;         &quot;Lemurian Quartz&quot;      &quot;Lepidolite&quot;          
+#&gt; [40] &quot;Libyan Gold Tektite&quot;  &quot;Magnesite&quot;            &quot;Malachite&quot;           
+#&gt; [43] &quot;Meteorite&quot;            &quot;Moldavite&quot;            &quot;Moonstone&quot;           
+#&gt; [46] &quot;Orange Calcite&quot;       &quot;Peridot&quot;              &quot;Pyrite&quot;              
+#&gt; [49] &quot;Quartz&quot;               &quot;Rhodochrosite&quot;        &quot;Rhodonite&quot;           
+#&gt; [52] &quot;Rose Quartz&quot;          &quot;Ruby&quot;                 &quot;Scolecite&quot;           
+#&gt; [55] &quot;Selenite&quot;             &quot;Serpentine&quot;           &quot;Shungite&quot;            
+#&gt; [58] &quot;Smoky Quartz&quot;         &quot;Sodalite&quot;             &quot;Tektite&quot;             
+#&gt; [61] &quot;Tibetan Black Quartz&quot; &quot;Tiger Eye&quot;            &quot;Titanium Quartz&quot;     
+#&gt; [64] &quot;Tourmalined Quartz&quot;   &quot;Turquoise&quot;            &quot;Vanadinite&quot;</code></pre>
+<p>注意，<code>rlist</code>的设计与<code>dplyr</code>函数非常类似，我们可以利用管道符号将数据往下传递：</p>
+<pre class="r"><code>products %&gt;% 
+    list.filter(livemode = TRUE) %&gt;% 
+    list.mapv(name)
+#&gt;  [1] &quot;Amazonite&quot;            &quot;Amber&quot;                &quot;Amethyst&quot;            
+#&gt;  [4] &quot;Ametrine&quot;             &quot;Apophyllite&quot;          &quot;Aquamarine&quot;          
+#&gt;  [7] &quot;Aragonite&quot;            &quot;Azurite&quot;              &quot;Barite&quot;              
+#&gt; [10] &quot;Bismuth&quot;              &quot;Black Tourmaline&quot;     &quot;Bloodstone&quot;          
+#&gt; [13] &quot;Blue Calcite&quot;         &quot;Blue Kyanite&quot;         &quot;Carnelian&quot;           
+#&gt; [16] &quot;Celestite&quot;            &quot;Chrysocolla&quot;          &quot;Chrysoprase&quot;         
+#&gt; [19] &quot;Citrine&quot;              &quot;Copper&quot;               &quot;Dalmatian Stone&quot;     
+#&gt; [22] &quot;Danburite&quot;            &quot;Desert Rose&quot;          &quot;Emerald&quot;             
+#&gt; [25] &quot;Epidote&quot;              &quot;Fluorite&quot;             &quot;Garnet&quot;              
+#&gt; [28] &quot;Green Calcite&quot;        &quot;Hematite&quot;             &quot;Honey Calcite&quot;       
+#&gt; [31] &quot;Howlite&quot;              &quot;Jasper&quot;               &quot;Jet&quot;                 
+#&gt; [34] &quot;Kunzite&quot;              &quot;Labradorite&quot;          &quot;Lapis Lazuli&quot;        
+#&gt; [37] &quot;Lemon Quartz&quot;         &quot;Lemurian Quartz&quot;      &quot;Lepidolite&quot;          
+#&gt; [40] &quot;Libyan Gold Tektite&quot;  &quot;Magnesite&quot;            &quot;Malachite&quot;           
+#&gt; [43] &quot;Meteorite&quot;            &quot;Moldavite&quot;            &quot;Moonstone&quot;           
+#&gt; [46] &quot;Orange Calcite&quot;       &quot;Peridot&quot;              &quot;Pyrite&quot;              
+#&gt; [49] &quot;Quartz&quot;               &quot;Rhodochrosite&quot;        &quot;Rhodonite&quot;           
+#&gt; [52] &quot;Rose Quartz&quot;          &quot;Ruby&quot;                 &quot;Scolecite&quot;           
+#&gt; [55] &quot;Selenite&quot;             &quot;Serpentine&quot;           &quot;Shungite&quot;            
+#&gt; [58] &quot;Smoky Quartz&quot;         &quot;Sodalite&quot;             &quot;Tektite&quot;             
+#&gt; [61] &quot;Tibetan Black Quartz&quot; &quot;Tiger Eye&quot;            &quot;Titanium Quartz&quot;     
+#&gt; [64] &quot;Tourmalined Quartz&quot;   &quot;Turquoise&quot;            &quot;Vanadinite&quot;</code></pre>
+<p>使用<code>list.select</code>可以筛选字段以及创建新的字段：</p>
+<pre class="r"><code>products %&gt;% 
+    list.filter(livemode = TRUE) %&gt;% 
+    list.select(id, name, caption) %&gt;% 
+    str()
+#&gt; List of 66
+#&gt;  $ :List of 3
+#&gt;   ..$ id     : chr &quot;amazonite&quot;
+#&gt;   ..$ name   : chr &quot;Amazonite&quot;
+#&gt;   ..$ caption: chr &quot;love,calm,communication&quot;
+#&gt;  $ :List of 3
+#&gt;   ..$ id     : chr &quot;amber&quot;
+#&gt;   ..$ name   : chr &quot;Amber&quot;
+#&gt;   ..$ caption: chr &quot;cleansing,vitality,protection&quot;
+#&gt;  $ :List of 3
+#&gt;   ..$ id     : chr &quot;amethyst&quot;
+#&gt;   ..$ name   : chr &quot;Amethyst&quot;
+#&gt;   ..$ caption: chr &quot;cleansing,protection,clarity&quot;
+#&gt;  $ :List of 3
+#&gt;   ..$ id     : chr &quot;ametrine&quot;
+#&gt;   ..$ name   : chr &quot;Ametrine&quot;
+#&gt;   ..$ caption: chr &quot;Clarity,motivation,confidence&quot;
+#&gt;  $ :List of 3
+#&gt;   ..$ id     : chr &quot;apophyllite&quot;
+#&gt;   ..$ name   : chr &quot;Apophyllite&quot;
+#&gt;   ..$ caption: chr &quot;insight,intuition,vitality&quot;
+#&gt;  $ :List of 3
+#&gt;   ..$ id     : chr &quot;aquamarine&quot;
+#&gt;   ..$ name   : chr &quot;Aquamarine&quot;
+#&gt;   ..$ caption: chr &quot;Clarity,calm,cleansing&quot;
+#&gt;  $ :List of 3
+#&gt;   ..$ id     : chr &quot;aragonite&quot;
+#&gt;   ..$ name   : chr &quot;Aragonite&quot;
+#&gt;   ..$ caption: chr &quot;balance,strength,confidence&quot;
+#&gt;  $ :List of 3
+#&gt;   ..$ id     : chr &quot;azurite&quot;
+#&gt;   ..$ name   : chr &quot;Azurite&quot;
+#&gt;   ..$ caption: chr &quot;Calm,balance,dreamwork&quot;
+#&gt;  $ :List of 3
+#&gt;   ..$ id     : chr &quot;barite&quot;
+#&gt;   ..$ name   : chr &quot;Barite&quot;
+#&gt;   ..$ caption: chr &quot;Dreamwork,insight,intuition&quot;
+#&gt;  $ :List of 3
+#&gt;   ..$ id     : chr &quot;bismuth&quot;
+#&gt;   ..$ name   : chr &quot;Bismuth&quot;
+#&gt;   ..$ caption: chr &quot;Transformation,vitality,focus&quot;
+#&gt;  $ :List of 3
+#&gt;   ..$ id     : chr &quot;black_tourmaline&quot;
+#&gt;   ..$ name   : chr &quot;Black Tourmaline&quot;
+#&gt;   ..$ caption: chr &quot;grounding,protection,cleansing&quot;
+#&gt;  $ :List of 3
+#&gt;   ..$ id     : chr &quot;bloodstone&quot;
+#&gt;   ..$ name   : chr &quot;Bloodstone&quot;
+#&gt;   ..$ caption: chr &quot;courage,cleansing,vitality,strength,manifestation,transformation&quot;
+#&gt;  $ :List of 3
+#&gt;   ..$ id     : chr &quot;blue_calcite&quot;
+#&gt;   ..$ name   : chr &quot;Blue Calcite&quot;
+#&gt;   ..$ caption: chr &quot;Creativity,clarity,intuition,calm,protection,dreamwork&quot;
+#&gt;  $ :List of 3
+#&gt;   ..$ id     : chr &quot;kyanite&quot;
+#&gt;   ..$ name   : chr &quot;Blue Kyanite&quot;
+#&gt;   ..$ caption: chr &quot;communication,intuition,insight&quot;
+#&gt;  $ :List of 3
+#&gt;   ..$ id     : chr &quot;carnelian&quot;
+#&gt;   ..$ name   : chr &quot;Carnelian&quot;
+#&gt;   ..$ caption: chr &quot;confidence,courage,strength,passion,motivation,vitality&quot;
+#&gt;  $ :List of 3
+#&gt;   ..$ id     : chr &quot;celestite&quot;
+#&gt;   ..$ name   : chr &quot;Celestite&quot;
+#&gt;   ..$ caption: chr &quot;Intuition,protection,calm&quot;
+#&gt;  $ :List of 3
+#&gt;   ..$ id     : chr &quot;chrysocolla&quot;
+#&gt;   ..$ name   : chr &quot;Chrysocolla&quot;
+#&gt;   ..$ caption: chr &quot;communication,strength,insight&quot;
+#&gt;  $ :List of 3
+#&gt;   ..$ id     : chr &quot;chrysoprase&quot;
+#&gt;   ..$ name   : chr &quot;Chrysoprase&quot;
+#&gt;   ..$ caption: chr &quot;Balance,joy,transformation&quot;
+#&gt;  $ :List of 3
+#&gt;   ..$ id     : chr &quot;citrine&quot;
+#&gt;   ..$ name   : chr &quot;Citrine&quot;
+#&gt;   ..$ caption: chr &quot;confidence,love,passion,manifestation,intuition,creativity&quot;
+#&gt;  $ :List of 3
+#&gt;   ..$ id     : chr &quot;copper&quot;
+#&gt;   ..$ name   : chr &quot;Copper&quot;
+#&gt;   ..$ caption: chr &quot;balance,vitality,grounding&quot;
+#&gt;  $ :List of 3
+#&gt;   ..$ id     : chr &quot;dalmatian_stone&quot;
+#&gt;   ..$ name   : chr &quot;Dalmatian Stone&quot;
+#&gt;   ..$ caption: chr &quot;protection,calm,joy&quot;
+#&gt;  $ :List of 3
+#&gt;   ..$ id     : chr &quot;danburite&quot;
+#&gt;   ..$ name   : chr &quot;Danburite&quot;
+#&gt;   ..$ caption: chr &quot;Calm,joy,communication&quot;
+#&gt;  $ :List of 3
+#&gt;   ..$ id     : chr &quot;desert_rose&quot;
+#&gt;   ..$ name   : chr &quot;Desert Rose&quot;
+#&gt;   ..$ caption: chr &quot;insight,courage,clarity&quot;
+#&gt;  $ :List of 3
+#&gt;   ..$ id     : chr &quot;emerald&quot;
+#&gt;   ..$ name   : chr &quot;Emerald&quot;
+#&gt;   ..$ caption: chr &quot;Love,Vitality,Balance&quot;
+#&gt;  $ :List of 3
+#&gt;   ..$ id     : chr &quot;epidote&quot;
+#&gt;   ..$ name   : chr &quot;Epidote&quot;
+#&gt;   ..$ caption: chr &quot;Transformation,manifestation,motivation&quot;
+#&gt;  $ :List of 3
+#&gt;   ..$ id     : chr &quot;fluorite&quot;
+#&gt;   ..$ name   : chr &quot;Fluorite&quot;
+#&gt;   ..$ caption: chr &quot;focus,clarity,insight&quot;
+#&gt;  $ :List of 3
+#&gt;   ..$ id     : chr &quot;garnet&quot;
+#&gt;   ..$ name   : chr &quot;Garnet&quot;
+#&gt;   ..$ caption: chr &quot;Creativity,manifestation,passion&quot;
+#&gt;  $ :List of 3
+#&gt;   ..$ id     : chr &quot;green_calcite&quot;
+#&gt;   ..$ name   : chr &quot;Green Calcite&quot;
+#&gt;   ..$ caption: chr &quot;Calm,Balance,Love&quot;
+#&gt;  $ :List of 3
+#&gt;   ..$ id     : chr &quot;hematite&quot;
+#&gt;   ..$ name   : chr &quot;Hematite&quot;
+#&gt;   ..$ caption: chr &quot;balance,grounding,manifestation&quot;
+#&gt;  $ :List of 3
+#&gt;   ..$ id     : chr &quot;honey_calcite&quot;
+#&gt;   ..$ name   : chr &quot;Honey Calcite&quot;
+#&gt;   ..$ caption: chr &quot;confidence,motivation,manifestation&quot;
+#&gt;  $ :List of 3
+#&gt;   ..$ id     : chr &quot;howlite&quot;
+#&gt;   ..$ name   : chr &quot;Howlite&quot;
+#&gt;   ..$ caption: chr &quot;focus,calm,creativity&quot;
+#&gt;  $ :List of 3
+#&gt;   ..$ id     : chr &quot;jasper&quot;
+#&gt;   ..$ name   : chr &quot;Jasper&quot;
+#&gt;   ..$ caption: chr &quot;Grounding,Balance,Strength&quot;
+#&gt;  $ :List of 3
+#&gt;   ..$ id     : chr &quot;jet&quot;
+#&gt;   ..$ name   : chr &quot;Jet&quot;
+#&gt;   ..$ caption: chr &quot;Grounding,cleansing,vitality&quot;
+#&gt;  $ :List of 3
+#&gt;   ..$ id     : chr &quot;kunzite&quot;
+#&gt;   ..$ name   : chr &quot;Kunzite&quot;
+#&gt;   ..$ caption: chr &quot;Love,joy,vitality&quot;
+#&gt;  $ :List of 3
+#&gt;   ..$ id     : chr &quot;labradorite&quot;
+#&gt;   ..$ name   : chr &quot;Labradorite&quot;
+#&gt;   ..$ caption: chr &quot;Creativity,joy,vitality&quot;
+#&gt;  $ :List of 3
+#&gt;   ..$ id     : chr &quot;lapis_lazuli&quot;
+#&gt;   ..$ name   : chr &quot;Lapis Lazuli&quot;
+#&gt;   ..$ caption: chr &quot;insight,calm,transformation&quot;
+#&gt;  $ :List of 3
+#&gt;   ..$ id     : chr &quot;lemon_quartz&quot;
+#&gt;   ..$ name   : chr &quot;Lemon Quartz&quot;
+#&gt;   ..$ caption: chr &quot;Joy,Balance,Vitality&quot;
+#&gt;  $ :List of 3
+#&gt;   ..$ id     : chr &quot;lemurian_quartz&quot;
+#&gt;   ..$ name   : chr &quot;Lemurian Quartz&quot;
+#&gt;   ..$ caption: chr &quot;Love,strength,balance&quot;
+#&gt;  $ :List of 3
+#&gt;   ..$ id     : chr &quot;lepidolite&quot;
+#&gt;   ..$ name   : chr &quot;Lepidolite&quot;
+#&gt;   ..$ caption: chr &quot;Calm,Balance,Cleansing&quot;
+#&gt;  $ :List of 3
+#&gt;   ..$ id     : chr &quot;libyan_gold_tektite&quot;
+#&gt;   ..$ name   : chr &quot;Libyan Gold Tektite&quot;
+#&gt;   ..$ caption: chr &quot;Motivation,confidence,manifestation,protection,creativity,strength&quot;
+#&gt;  $ :List of 3
+#&gt;   ..$ id     : chr &quot;magnesite&quot;
+#&gt;   ..$ name   : chr &quot;Magnesite&quot;
+#&gt;   ..$ caption: chr &quot;balance,calm,insight&quot;
+#&gt;  $ :List of 3
+#&gt;   ..$ id     : chr &quot;malachite&quot;
+#&gt;   ..$ name   : chr &quot;Malachite&quot;
+#&gt;   ..$ caption: chr &quot;creativity,strength,confidence&quot;
+#&gt;  $ :List of 3
+#&gt;   ..$ id     : chr &quot;meteorite&quot;
+#&gt;   ..$ name   : chr &quot;Meteorite&quot;
+#&gt;   ..$ caption: chr &quot;Vitality,Intuition,Insight&quot;
+#&gt;  $ :List of 3
+#&gt;   ..$ id     : chr &quot;moldavite&quot;
+#&gt;   ..$ name   : chr &quot;Moldavite&quot;
+#&gt;   ..$ caption: chr &quot;Cleansing,Manifestation,Vitality,Insight,Transformation,Dreamwork&quot;
+#&gt;  $ :List of 3
+#&gt;   ..$ id     : chr &quot;moonstone&quot;
+#&gt;   ..$ name   : chr &quot;Moonstone&quot;
+#&gt;   ..$ caption: chr &quot;insight,intuition,dreamwork&quot;
+#&gt;  $ :List of 3
+#&gt;   ..$ id     : chr &quot;orange_calcite&quot;
+#&gt;   ..$ name   : chr &quot;Orange Calcite&quot;
+#&gt;   ..$ caption: chr &quot;Creativity,vitality,passion&quot;
+#&gt;  $ :List of 3
+#&gt;   ..$ id     : chr &quot;peridot&quot;
+#&gt;   ..$ name   : chr &quot;Peridot&quot;
+#&gt;   ..$ caption: chr &quot;manifestation,vitality,transformation&quot;
+#&gt;  $ :List of 3
+#&gt;   ..$ id     : chr &quot;pyrite&quot;
+#&gt;   ..$ name   : chr &quot;Pyrite&quot;
+#&gt;   ..$ caption: chr &quot;manifestation,creativity,confidence,passion,strength,focus&quot;
+#&gt;  $ :List of 3
+#&gt;   ..$ id     : chr &quot;quartz&quot;
+#&gt;   ..$ name   : chr &quot;Quartz&quot;
+#&gt;   ..$ caption: chr &quot;clarity,transformation,cleansing&quot;
+#&gt;  $ :List of 3
+#&gt;   ..$ id     : chr &quot;rhodochrosite&quot;
+#&gt;   ..$ name   : chr &quot;Rhodochrosite&quot;
+#&gt;   ..$ caption: chr &quot;Love,courage,joy&quot;
+#&gt;  $ :List of 3
+#&gt;   ..$ id     : chr &quot;rhodonite&quot;
+#&gt;   ..$ name   : chr &quot;Rhodonite&quot;
+#&gt;   ..$ caption: chr &quot;Love,transformation,clarity&quot;
+#&gt;  $ :List of 3
+#&gt;   ..$ id     : chr &quot;rose_quartz&quot;
+#&gt;   ..$ name   : chr &quot;Rose Quartz&quot;
+#&gt;   ..$ caption: chr &quot;love,calm,creativity&quot;
+#&gt;  $ :List of 3
+#&gt;   ..$ id     : chr &quot;ruby&quot;
+#&gt;   ..$ name   : chr &quot;Ruby&quot;
+#&gt;   ..$ caption: chr &quot;Passion,vitality,courage,strength,protection,motivation&quot;
+#&gt;  $ :List of 3
+#&gt;   ..$ id     : chr &quot;scolecite&quot;
+#&gt;   ..$ name   : chr &quot;Scolecite&quot;
+#&gt;   ..$ caption: chr &quot;calm,insight,dreamwork&quot;
+#&gt;  $ :List of 3
+#&gt;   ..$ id     : chr &quot;selenite&quot;
+#&gt;   ..$ name   : chr &quot;Selenite&quot;
+#&gt;   ..$ caption: chr &quot;Clarity,cleansing,motivation&quot;
+#&gt;  $ :List of 3
+#&gt;   ..$ id     : chr &quot;serpentine&quot;
+#&gt;   ..$ name   : chr &quot;Serpentine&quot;
+#&gt;   ..$ caption: chr &quot;Manifestation,transformation,vitality&quot;
+#&gt;  $ :List of 3
+#&gt;   ..$ id     : chr &quot;shungite&quot;
+#&gt;   ..$ name   : chr &quot;Shungite&quot;
+#&gt;   ..$ caption: chr &quot;clarity,transformation,cleansing&quot;
+#&gt;  $ :List of 3
+#&gt;   ..$ id     : chr &quot;smoky_quartz&quot;
+#&gt;   ..$ name   : chr &quot;Smoky Quartz&quot;
+#&gt;   ..$ caption: chr &quot;calm,clarity,protection&quot;
+#&gt;  $ :List of 3
+#&gt;   ..$ id     : chr &quot;sodalite&quot;
+#&gt;   ..$ name   : chr &quot;Sodalite&quot;
+#&gt;   ..$ caption: chr &quot;Insight,Intuition,Dreamwork&quot;
+#&gt;  $ :List of 3
+#&gt;   ..$ id     : chr &quot;tektite&quot;
+#&gt;   ..$ name   : chr &quot;Tektite&quot;
+#&gt;   ..$ caption: chr &quot;Communication,transformation,vitality&quot;
+#&gt;  $ :List of 3
+#&gt;   ..$ id     : chr &quot;tibetan_black_quartz&quot;
+#&gt;   ..$ name   : chr &quot;Tibetan Black Quartz&quot;
+#&gt;   ..$ caption: chr &quot;Protection,balance,cleansing&quot;
+#&gt;  $ :List of 3
+#&gt;   ..$ id     : chr &quot;tigers_eye&quot;
+#&gt;   ..$ name   : chr &quot;Tiger Eye&quot;
+#&gt;   ..$ caption: chr &quot;Balance,confidence,strength&quot;
+#&gt;  $ :List of 3
+#&gt;   ..$ id     : chr &quot;titanium_quartz&quot;
+#&gt;   ..$ name   : chr &quot;Titanium Quartz&quot;
+#&gt;   ..$ caption: chr &quot;strength,focus,confidence&quot;
+#&gt;  $ :List of 3
+#&gt;   ..$ id     : chr &quot;tourmalined_quartz&quot;
+#&gt;   ..$ name   : chr &quot;Tourmalined Quartz&quot;
+#&gt;   ..$ caption: chr &quot;Cleansing,protection,clarity&quot;
+#&gt;  $ :List of 3
+#&gt;   ..$ id     : chr &quot;turquoise&quot;
+#&gt;   ..$ name   : chr &quot;Turquoise&quot;
+#&gt;   ..$ caption: chr &quot;strength,balance,communication&quot;
+#&gt;  $ :List of 3
+#&gt;   ..$ id     : chr &quot;vanadinite&quot;
+#&gt;   ..$ name   : chr &quot;Vanadinite&quot;
+#&gt;   ..$ caption: chr &quot;creativity,motivation,vitality&quot;</code></pre>
+<p>创建新字段：</p>
+<pre class="r"><code>products %&gt;% 
+    list.filter(livemode = TRUE) %&gt;% 
+    list.select(id, name, caption) %&gt;% 
+    list.select(connect = paste(id, name, sep = &quot;-&quot;)) %&gt;% 
+    str()
+#&gt; List of 66
+#&gt;  $ :List of 1
+#&gt;   ..$ connect: chr &quot;amazonite-Amazonite&quot;
+#&gt;  $ :List of 1
+#&gt;   ..$ connect: chr &quot;amber-Amber&quot;
+#&gt;  $ :List of 1
+#&gt;   ..$ connect: chr &quot;amethyst-Amethyst&quot;
+#&gt;  $ :List of 1
+#&gt;   ..$ connect: chr &quot;ametrine-Ametrine&quot;
+#&gt;  $ :List of 1
+#&gt;   ..$ connect: chr &quot;apophyllite-Apophyllite&quot;
+#&gt;  $ :List of 1
+#&gt;   ..$ connect: chr &quot;aquamarine-Aquamarine&quot;
+#&gt;  $ :List of 1
+#&gt;   ..$ connect: chr &quot;aragonite-Aragonite&quot;
+#&gt;  $ :List of 1
+#&gt;   ..$ connect: chr &quot;azurite-Azurite&quot;
+#&gt;  $ :List of 1
+#&gt;   ..$ connect: chr &quot;barite-Barite&quot;
+#&gt;  $ :List of 1
+#&gt;   ..$ connect: chr &quot;bismuth-Bismuth&quot;
+#&gt;  $ :List of 1
+#&gt;   ..$ connect: chr &quot;black_tourmaline-Black Tourmaline&quot;
+#&gt;  $ :List of 1
+#&gt;   ..$ connect: chr &quot;bloodstone-Bloodstone&quot;
+#&gt;  $ :List of 1
+#&gt;   ..$ connect: chr &quot;blue_calcite-Blue Calcite&quot;
+#&gt;  $ :List of 1
+#&gt;   ..$ connect: chr &quot;kyanite-Blue Kyanite&quot;
+#&gt;  $ :List of 1
+#&gt;   ..$ connect: chr &quot;carnelian-Carnelian&quot;
+#&gt;  $ :List of 1
+#&gt;   ..$ connect: chr &quot;celestite-Celestite&quot;
+#&gt;  $ :List of 1
+#&gt;   ..$ connect: chr &quot;chrysocolla-Chrysocolla&quot;
+#&gt;  $ :List of 1
+#&gt;   ..$ connect: chr &quot;chrysoprase-Chrysoprase&quot;
+#&gt;  $ :List of 1
+#&gt;   ..$ connect: chr &quot;citrine-Citrine&quot;
+#&gt;  $ :List of 1
+#&gt;   ..$ connect: chr &quot;copper-Copper&quot;
+#&gt;  $ :List of 1
+#&gt;   ..$ connect: chr &quot;dalmatian_stone-Dalmatian Stone&quot;
+#&gt;  $ :List of 1
+#&gt;   ..$ connect: chr &quot;danburite-Danburite&quot;
+#&gt;  $ :List of 1
+#&gt;   ..$ connect: chr &quot;desert_rose-Desert Rose&quot;
+#&gt;  $ :List of 1
+#&gt;   ..$ connect: chr &quot;emerald-Emerald&quot;
+#&gt;  $ :List of 1
+#&gt;   ..$ connect: chr &quot;epidote-Epidote&quot;
+#&gt;  $ :List of 1
+#&gt;   ..$ connect: chr &quot;fluorite-Fluorite&quot;
+#&gt;  $ :List of 1
+#&gt;   ..$ connect: chr &quot;garnet-Garnet&quot;
+#&gt;  $ :List of 1
+#&gt;   ..$ connect: chr &quot;green_calcite-Green Calcite&quot;
+#&gt;  $ :List of 1
+#&gt;   ..$ connect: chr &quot;hematite-Hematite&quot;
+#&gt;  $ :List of 1
+#&gt;   ..$ connect: chr &quot;honey_calcite-Honey Calcite&quot;
+#&gt;  $ :List of 1
+#&gt;   ..$ connect: chr &quot;howlite-Howlite&quot;
+#&gt;  $ :List of 1
+#&gt;   ..$ connect: chr &quot;jasper-Jasper&quot;
+#&gt;  $ :List of 1
+#&gt;   ..$ connect: chr &quot;jet-Jet&quot;
+#&gt;  $ :List of 1
+#&gt;   ..$ connect: chr &quot;kunzite-Kunzite&quot;
+#&gt;  $ :List of 1
+#&gt;   ..$ connect: chr &quot;labradorite-Labradorite&quot;
+#&gt;  $ :List of 1
+#&gt;   ..$ connect: chr &quot;lapis_lazuli-Lapis Lazuli&quot;
+#&gt;  $ :List of 1
+#&gt;   ..$ connect: chr &quot;lemon_quartz-Lemon Quartz&quot;
+#&gt;  $ :List of 1
+#&gt;   ..$ connect: chr &quot;lemurian_quartz-Lemurian Quartz&quot;
+#&gt;  $ :List of 1
+#&gt;   ..$ connect: chr &quot;lepidolite-Lepidolite&quot;
+#&gt;  $ :List of 1
+#&gt;   ..$ connect: chr &quot;libyan_gold_tektite-Libyan Gold Tektite&quot;
+#&gt;  $ :List of 1
+#&gt;   ..$ connect: chr &quot;magnesite-Magnesite&quot;
+#&gt;  $ :List of 1
+#&gt;   ..$ connect: chr &quot;malachite-Malachite&quot;
+#&gt;  $ :List of 1
+#&gt;   ..$ connect: chr &quot;meteorite-Meteorite&quot;
+#&gt;  $ :List of 1
+#&gt;   ..$ connect: chr &quot;moldavite-Moldavite&quot;
+#&gt;  $ :List of 1
+#&gt;   ..$ connect: chr &quot;moonstone-Moonstone&quot;
+#&gt;  $ :List of 1
+#&gt;   ..$ connect: chr &quot;orange_calcite-Orange Calcite&quot;
+#&gt;  $ :List of 1
+#&gt;   ..$ connect: chr &quot;peridot-Peridot&quot;
+#&gt;  $ :List of 1
+#&gt;   ..$ connect: chr &quot;pyrite-Pyrite&quot;
+#&gt;  $ :List of 1
+#&gt;   ..$ connect: chr &quot;quartz-Quartz&quot;
+#&gt;  $ :List of 1
+#&gt;   ..$ connect: chr &quot;rhodochrosite-Rhodochrosite&quot;
+#&gt;  $ :List of 1
+#&gt;   ..$ connect: chr &quot;rhodonite-Rhodonite&quot;
+#&gt;  $ :List of 1
+#&gt;   ..$ connect: chr &quot;rose_quartz-Rose Quartz&quot;
+#&gt;  $ :List of 1
+#&gt;   ..$ connect: chr &quot;ruby-Ruby&quot;
+#&gt;  $ :List of 1
+#&gt;   ..$ connect: chr &quot;scolecite-Scolecite&quot;
+#&gt;  $ :List of 1
+#&gt;   ..$ connect: chr &quot;selenite-Selenite&quot;
+#&gt;  $ :List of 1
+#&gt;   ..$ connect: chr &quot;serpentine-Serpentine&quot;
+#&gt;  $ :List of 1
+#&gt;   ..$ connect: chr &quot;shungite-Shungite&quot;
+#&gt;  $ :List of 1
+#&gt;   ..$ connect: chr &quot;smoky_quartz-Smoky Quartz&quot;
+#&gt;  $ :List of 1
+#&gt;   ..$ connect: chr &quot;sodalite-Sodalite&quot;
+#&gt;  $ :List of 1
+#&gt;   ..$ connect: chr &quot;tektite-Tektite&quot;
+#&gt;  $ :List of 1
+#&gt;   ..$ connect: chr &quot;tibetan_black_quartz-Tibetan Black Quartz&quot;
+#&gt;  $ :List of 1
+#&gt;   ..$ connect: chr &quot;tigers_eye-Tiger Eye&quot;
+#&gt;  $ :List of 1
+#&gt;   ..$ connect: chr &quot;titanium_quartz-Titanium Quartz&quot;
+#&gt;  $ :List of 1
+#&gt;   ..$ connect: chr &quot;tourmalined_quartz-Tourmalined Quartz&quot;
+#&gt;  $ :List of 1
+#&gt;   ..$ connect: chr &quot;turquoise-Turquoise&quot;
+#&gt;  $ :List of 1
+#&gt;   ..$ connect: chr &quot;vanadinite-Vanadinite&quot;</code></pre>
+<p>用<code>list.sort()</code>函数，可以按照指定字段或值对列表元素进行排序，再用<code>list.stack()</code>将所有元素变成数据框：</p>
+<pre class="r"><code>products %&gt;% 
+    list.filter(livemode = TRUE) %&gt;% 
+    list.select(id, name, caption) %&gt;% 
+    list.sort(id) %&gt;% 
+    list.stack()
+#&gt;                      id                 name
+#&gt; 1             amazonite            Amazonite
+#&gt; 2                 amber                Amber
+#&gt; 3              amethyst             Amethyst
+#&gt; 4              ametrine             Ametrine
+#&gt; 5           apophyllite          Apophyllite
+#&gt; 6            aquamarine           Aquamarine
+#&gt; 7             aragonite            Aragonite
+#&gt; 8               azurite              Azurite
+#&gt; 9                barite               Barite
+#&gt; 10              bismuth              Bismuth
+#&gt; 11     black_tourmaline     Black Tourmaline
+#&gt; 12           bloodstone           Bloodstone
+#&gt; 13         blue_calcite         Blue Calcite
+#&gt; 14            carnelian            Carnelian
+#&gt; 15            celestite            Celestite
+#&gt; 16          chrysocolla          Chrysocolla
+#&gt; 17          chrysoprase          Chrysoprase
+#&gt; 18              citrine              Citrine
+#&gt; 19               copper               Copper
+#&gt; 20      dalmatian_stone      Dalmatian Stone
+#&gt; 21            danburite            Danburite
+#&gt; 22          desert_rose          Desert Rose
+#&gt; 23              emerald              Emerald
+#&gt; 24              epidote              Epidote
+#&gt; 25             fluorite             Fluorite
+#&gt; 26               garnet               Garnet
+#&gt; 27        green_calcite        Green Calcite
+#&gt; 28             hematite             Hematite
+#&gt; 29        honey_calcite        Honey Calcite
+#&gt; 30              howlite              Howlite
+#&gt; 31               jasper               Jasper
+#&gt; 32                  jet                  Jet
+#&gt; 33              kunzite              Kunzite
+#&gt; 34              kyanite         Blue Kyanite
+#&gt; 35          labradorite          Labradorite
+#&gt; 36         lapis_lazuli         Lapis Lazuli
+#&gt; 37         lemon_quartz         Lemon Quartz
+#&gt; 38      lemurian_quartz      Lemurian Quartz
+#&gt; 39           lepidolite           Lepidolite
+#&gt; 40  libyan_gold_tektite  Libyan Gold Tektite
+#&gt; 41            magnesite            Magnesite
+#&gt; 42            malachite            Malachite
+#&gt; 43            meteorite            Meteorite
+#&gt; 44            moldavite            Moldavite
+#&gt; 45            moonstone            Moonstone
+#&gt; 46       orange_calcite       Orange Calcite
+#&gt; 47              peridot              Peridot
+#&gt; 48               pyrite               Pyrite
+#&gt; 49               quartz               Quartz
+#&gt; 50        rhodochrosite        Rhodochrosite
+#&gt; 51            rhodonite            Rhodonite
+#&gt; 52          rose_quartz          Rose Quartz
+#&gt; 53                 ruby                 Ruby
+#&gt; 54            scolecite            Scolecite
+#&gt; 55             selenite             Selenite
+#&gt; 56           serpentine           Serpentine
+#&gt; 57             shungite             Shungite
+#&gt; 58         smoky_quartz         Smoky Quartz
+#&gt; 59             sodalite             Sodalite
+#&gt; 60              tektite              Tektite
+#&gt; 61 tibetan_black_quartz Tibetan Black Quartz
+#&gt; 62           tigers_eye            Tiger Eye
+#&gt; 63      titanium_quartz      Titanium Quartz
+#&gt; 64   tourmalined_quartz   Tourmalined Quartz
+#&gt; 65            turquoise            Turquoise
+#&gt; 66           vanadinite           Vanadinite
+#&gt;                                                               caption
+#&gt; 1                                             love,calm,communication
+#&gt; 2                                       cleansing,vitality,protection
+#&gt; 3                                        cleansing,protection,clarity
+#&gt; 4                                       Clarity,motivation,confidence
+#&gt; 5                                          insight,intuition,vitality
+#&gt; 6                                              Clarity,calm,cleansing
+#&gt; 7                                         balance,strength,confidence
+#&gt; 8                                              Calm,balance,dreamwork
+#&gt; 9                                         Dreamwork,insight,intuition
+#&gt; 10                                      Transformation,vitality,focus
+#&gt; 11                                     grounding,protection,cleansing
+#&gt; 12   courage,cleansing,vitality,strength,manifestation,transformation
+#&gt; 13             Creativity,clarity,intuition,calm,protection,dreamwork
+#&gt; 14            confidence,courage,strength,passion,motivation,vitality
+#&gt; 15                                          Intuition,protection,calm
+#&gt; 16                                     communication,strength,insight
+#&gt; 17                                         Balance,joy,transformation
+#&gt; 18         confidence,love,passion,manifestation,intuition,creativity
+#&gt; 19                                         balance,vitality,grounding
+#&gt; 20                                                protection,calm,joy
+#&gt; 21                                             Calm,joy,communication
+#&gt; 22                                            insight,courage,clarity
+#&gt; 23                                              Love,Vitality,Balance
+#&gt; 24                            Transformation,manifestation,motivation
+#&gt; 25                                              focus,clarity,insight
+#&gt; 26                                   Creativity,manifestation,passion
+#&gt; 27                                                  Calm,Balance,Love
+#&gt; 28                                    balance,grounding,manifestation
+#&gt; 29                                confidence,motivation,manifestation
+#&gt; 30                                              focus,calm,creativity
+#&gt; 31                                         Grounding,Balance,Strength
+#&gt; 32                                       Grounding,cleansing,vitality
+#&gt; 33                                                  Love,joy,vitality
+#&gt; 34                                    communication,intuition,insight
+#&gt; 35                                            Creativity,joy,vitality
+#&gt; 36                                        insight,calm,transformation
+#&gt; 37                                               Joy,Balance,Vitality
+#&gt; 38                                              Love,strength,balance
+#&gt; 39                                             Calm,Balance,Cleansing
+#&gt; 40 Motivation,confidence,manifestation,protection,creativity,strength
+#&gt; 41                                               balance,calm,insight
+#&gt; 42                                     creativity,strength,confidence
+#&gt; 43                                         Vitality,Intuition,Insight
+#&gt; 44  Cleansing,Manifestation,Vitality,Insight,Transformation,Dreamwork
+#&gt; 45                                        insight,intuition,dreamwork
+#&gt; 46                                        Creativity,vitality,passion
+#&gt; 47                              manifestation,vitality,transformation
+#&gt; 48         manifestation,creativity,confidence,passion,strength,focus
+#&gt; 49                                   clarity,transformation,cleansing
+#&gt; 50                                                   Love,courage,joy
+#&gt; 51                                        Love,transformation,clarity
+#&gt; 52                                               love,calm,creativity
+#&gt; 53            Passion,vitality,courage,strength,protection,motivation
+#&gt; 54                                             calm,insight,dreamwork
+#&gt; 55                                       Clarity,cleansing,motivation
+#&gt; 56                              Manifestation,transformation,vitality
+#&gt; 57                                   clarity,transformation,cleansing
+#&gt; 58                                            calm,clarity,protection
+#&gt; 59                                        Insight,Intuition,Dreamwork
+#&gt; 60                              Communication,transformation,vitality
+#&gt; 61                                       Protection,balance,cleansing
+#&gt; 62                                        Balance,confidence,strength
+#&gt; 63                                          strength,focus,confidence
+#&gt; 64                                       Cleansing,protection,clarity
+#&gt; 65                                     strength,balance,communication
+#&gt; 66                                     creativity,motivation,vitality</code></pre>
+<p>除此之外，<code>list.group()</code>函数可以用指定变量字段值对元素分组，<code>list.table()</code>提供了一个加强版的<code>table()</code>用于处理嵌套列表的表格处理。</p>
+<p>更多<code>rlist</code>函数，请阅读<code>rlist</code>教程（<a href="https://renkun.me/rlist-tutorial" class="uri">https://renkun.me/rlist-tutorial</a>），另外<code>purrr</code>是基于其他理念处理嵌套数据结构的包，有兴趣可以看看。</p>
 </div>

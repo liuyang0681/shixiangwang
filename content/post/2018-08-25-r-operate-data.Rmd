@@ -1061,4 +1061,49 @@ list.mapv(products, name)
 为了对products进行筛选，我们可以使用`list.filter()`，只有所有条件都为`TRUE`的`products`元素才会被返回：
 
 
+```{r}
+liveTRUE = list.filter(products, livemode = TRUE)
+list.mapv(liveTRUE, name)
+```
+
+注意，`rlist`的设计与`dplyr`函数非常类似，我们可以利用管道符号将数据往下传递：
+
+```{r}
+products %>% 
+    list.filter(livemode = TRUE) %>% 
+    list.mapv(name)
+```
+
+使用`list.select`可以筛选字段以及创建新的字段：
+
+```{r}
+products %>% 
+    list.filter(livemode = TRUE) %>% 
+    list.select(id, name, caption) %>% 
+    str()
+```
+
+创建新字段：
+
+```{r}
+products %>% 
+    list.filter(livemode = TRUE) %>% 
+    list.select(id, name, caption) %>% 
+    list.select(connect = paste(id, name, sep = "-")) %>% 
+    str()
+```
+
+用`list.sort()`函数，可以按照指定字段或值对列表元素进行排序，再用`list.stack()`将所有元素变成数据框：
+
+```{r}
+products %>% 
+    list.filter(livemode = TRUE) %>% 
+    list.select(id, name, caption) %>% 
+    list.sort(id) %>% 
+    list.stack()
+```
+
+除此之外，`list.group()`函数可以用指定变量字段值对元素分组，`list.table()`提供了一个加强版的`table()`用于处理嵌套列表的表格处理。
+
+更多`rlist`函数，请阅读`rlist`教程（<https://renkun.me/rlist-tutorial>），另外`purrr`是基于其他理念处理嵌套数据结构的包，有兴趣可以看看。
 
