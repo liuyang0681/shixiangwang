@@ -1,0 +1,72 @@
+---
+title: "高性能计算"
+author: 王诗翔
+date: 2018-08-29
+slug: "hpc-in-r"
+categories: 
+    - R
+tags:
+    - hpc
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(collapse = TRUE, dev = "png", comment = "#>")
+#Sys.setlocale('LC_ALL','C') # Embed this directly in the Rmarkdown script that contains the Chinese character comment
+options(digits=3)
+options(max.print=200)
+```
+
+> 《R语言编程指南》
+
+## 代码性能
+
+简单看函数运行时间，用`system.time()`函数。
+
+高级点，使用`microbenchmark`包的`microbenchmark()`函数。
+
+例如：
+
+```{r}
+library(microbenchmark)
+x = rnorm(10000)
+microbenchmark(x)
+```
+
+给出了类似`summary()`函数结果的样子，默认计算100次。
+
+## 代码性能分析
+
+R提供了内置函数`Rprof()`对代码性能进行分析。
+
+使用方法：调用Rprof()开始分析，运行想分析的代码，然后调用Rprof(NULL)停止分析，最后调用summaryRprof()查看分析结果：
+
+```{r}
+x = rnorm(10000)
+tmp = tempfile(fileext = ".out")
+Rprof(tmp)
+for (i in 1:1000) {
+    cumsum(x)
+}
+Rprof(NULL)
+
+summaryRprof(tmp)
+```
+
+
+当`Rprof()`设定`line.profiling = TRUE`时，将改为分析代码行，而不是函数，这有利于分析复杂的计算过程。
+
+高级点，使用RStudio提供的`profvis()`，它是一个交互式可视化的工具。
+
+```{r}
+install.packages("profvis")
+```
+
+## 提供代码性能
+
+* 使用内置函数
+* 使用向量化
+* 使用字节码编译器，再写完函数后用`cmpfun()`函数编译它，然后再使用
+* 使用微软的多线程计算MRO
+* 使用并行计算
+* 使用Rcpp
