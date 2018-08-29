@@ -29,7 +29,6 @@ tags:
 <p><strong>数据框的本质是一个由向量构成的列表</strong>，由于列长度相同，所以可以当做矩阵进行访问和操作。比如选择满足特定条件的行，使用<code>[]</code>符号，第一个参数提供一个逻辑向量，第二个参数留空。</p>
 <p>本文大部分的代码都是基于一组产品的虚拟数据。我们先将数据载入，然后学习怎么用不同的方法操作数据。</p>
 <pre class="r"><code>if(!require(readr)) install.packages(&quot;readr&quot;)
-#&gt; 载入需要的程辑包：readr
 
 product_info = read_csv(&quot;../../R/dataset/product-info.csv&quot;)
 #&gt; Parsed with column specification:
@@ -315,6 +314,11 @@ toy_tests
 <pre class="r"><code>install.packages(&quot;reshape2&quot;)</code></pre>
 <p>安装成功后，我们就可以使用<code>dcast()</code>来转换数据，用于比较：</p>
 <pre class="r"><code>library(reshape2)
+#&gt; 
+#&gt; 载入程辑包：&#39;reshape2&#39;
+#&gt; The following object is masked from &#39;package:tidyr&#39;:
+#&gt; 
+#&gt;     smiths
 
 toy_quality = dcast(toy_tests, date ~ id, value.var = &quot;quality&quot;)
 toy_quality
@@ -510,24 +514,30 @@ toy_tests = read_csv(&quot;../../R/dataset/product-toy-tests.csv&quot;)
 #&gt; 载入程辑包：&#39;data.table&#39;
 #&gt; The following objects are masked from &#39;package:reshape2&#39;:
 #&gt; 
-#&gt;     dcast, melt</code></pre>
+#&gt;     dcast, melt
+#&gt; The following objects are masked from &#39;package:dplyr&#39;:
+#&gt; 
+#&gt;     between, first, last
+#&gt; The following object is masked from &#39;package:purrr&#39;:
+#&gt; 
+#&gt;     transpose</code></pre>
 <p>注意，<code>data.table</code>包提供了加强版的<code>dcast()</code>和<code>melt()</code>，它们的功能更强大、性能更高，内存使用也更高效。</p>
 <p>创建<code>data.table</code>与创建<code>data.frame</code>类似：</p>
 <pre class="r"><code>dt = data.table(x = 1:3, y = rnorm(3), z = letters[1:3])
 dt
 #&gt;    x      y z
-#&gt; 1: 1  0.906 a
-#&gt; 2: 2 -0.154 b
-#&gt; 3: 3  0.608 c</code></pre>
+#&gt; 1: 1  0.935 a
+#&gt; 2: 2 -0.425 b
+#&gt; 3: 3  1.053 c</code></pre>
 <p>检查它的结构：</p>
 <pre class="r"><code>str(dt)
 #&gt; Classes &#39;data.table&#39; and &#39;data.frame&#39;:   3 obs. of  3 variables:
 #&gt;  $ x: int  1 2 3
-#&gt;  $ y: num  0.906 -0.154 0.608
+#&gt;  $ y: num  0.935 -0.425 1.053
 #&gt;  $ z: chr  &quot;a&quot; &quot;b&quot; &quot;c&quot;
 #&gt;  - attr(*, &quot;.internal.selfref&quot;)=&lt;externalptr&gt;</code></pre>
 <p>可以看到，<code>dt</code>的类是<code>data.table</code>和<code>data.frame</code>，也就是说<code>data.table</code>继承了<code>data.frame</code>的一些行为，但增强了其他部分。</p>
-<p>**<code>data.table</code>的基本语法是<code>dt[i, j, by]，简单说就是使用</code>i<code>选择行，用</code>by<code>分组，然后计算</code>j<code>。**接下来我们看看</code>data.table`继承了什么，增强了什么。</p>
+<p>**<code>data.table</code>的基本语法是<code>dt[i, j, by]，简单说就是使用</code>i<code>选择行，用</code>by<code>分组，然后计算</code>j<code>**。接下来我们看看</code>data.table`继承了什么，增强了什么。</p>
 <p>首先，我们仍然载入之前用到的产品数据，不过这里我们使用<code>data.table</code>包提供的<code>fread()</code>函数，它非常高效和智能，默认返回<code>data.table</code>。</p>
 <pre class="r"><code>product_info = fread(&quot;../../R/dataset/product-info.csv&quot;)
 product_stats = fread(&quot;../../R/dataset/product-stats.csv&quot;)
@@ -802,7 +812,7 @@ test1 = data.frame(id = 1:n, x = rnorm(n), y = rnorm(n))</code></pre>
 <p>现在查找id为876543的行，看要花多少时间：</p>
 <pre class="r"><code>system.time(row &lt;- test1[test1$id == 876543, ])
 #&gt;  用户  系统  流逝 
-#&gt; 0.132 0.018 0.150</code></pre>
+#&gt; 0.140 0.017 0.157</code></pre>
 <p>作为对比，我们使用<code>data.table</code>来完成这个任务，使用<code>setDT()</code>将数据框转换为<code>data.table</code>，该函数可以原地转换，不需要复制，并可以设定键。</p>
 <pre class="r"><code>setDT(test1, key = &quot;id&quot;)
 class(test1)
@@ -810,7 +820,7 @@ class(test1)
 <p>现在我们搜索相同的元素：</p>
 <pre class="r"><code>system.time(row &lt;- test1[.(876543)])
 #&gt;  用户  系统  流逝 
-#&gt; 0.001 0.000 0.000</code></pre>
+#&gt; 0.001 0.000 0.001</code></pre>
 <p>结果一致，但data.table用的时间要少得多。</p>
 </div>
 <div id="data.table" class="section level3">
@@ -1029,4 +1039,176 @@ head(market_data)
 #&gt; 6: 2015-05-06  34.3   3955   30.1   31.0   35.2</code></pre>
 <p>最后，更多操作请前往<a href="https://github.com/Rdatatable/data.table/wiki" class="uri">https://github.com/Rdatatable/data.table/wiki</a>查看完整功能列表。</p>
 </div>
+</div>
+<div id="dplyr" class="section level2">
+<h2>使用dplyr操作数据框</h2>
+<p>关于dplyr的基本操作我已经写过很多笔记了，不再赘述，想学习的读者请参阅下面几篇文章，这部分我只挑没接触过的学习下。</p>
+<ul>
+<li><a href="https://www.jianshu.com/p/f3c21a5ad10a">r&lt;-基础|分析】初学者学习tidyverse</a></li>
+<li><a href="https://www.jianshu.com/p/94faed25ff7a">【r&lt;-数据分析】使用dplyr（1）：介绍与filter操作</a>及后续</li>
+<li>高级操作：<a href="https://www.jianshu.com/p/5eca388205d4">【r&lt;-高级|dplyr】dplyr编程，quote与unquote</a></li>
+</ul>
+<p>与<code>data.table</code>类似，<code>dplyr</code>也提供了<code>do()</code>函数来对每组数据进行任意操作。</p>
+<p>例如将<code>diamonds</code>按<code>cut</code>分组，每组都按<code>log(price) ~ carat</code>拟合一个线性模型。和<code>data.table</code>不同的是，我们需要为操作指定一个名称，以便将结果存储在列中。而且<code>do()</code>表达式不能直接在分组数据的语义下计算 ，我们需要使用<code>.</code>来表示数据。</p>
+<pre class="r"><code>data(&quot;diamonds&quot;, package = &quot;ggplot2&quot;)
+models = diamonds %&gt;% 
+    group_by(cut) %&gt;% 
+    do(lmod = lm(log(price) ~ carat, data = .))
+models
+#&gt; Source: local data frame [5 x 2]
+#&gt; Groups: &lt;by row&gt;
+#&gt; 
+#&gt; # A tibble: 5 x 2
+#&gt;   cut       lmod    
+#&gt; * &lt;ord&gt;     &lt;list&gt;  
+#&gt; 1 Fair      &lt;S3: lm&gt;
+#&gt; 2 Good      &lt;S3: lm&gt;
+#&gt; 3 Very Good &lt;S3: lm&gt;
+#&gt; 4 Premium   &lt;S3: lm&gt;
+#&gt; 5 Ideal     &lt;S3: lm&gt;</code></pre>
+<p>注意结果创建了一个新列，该列不是典型的原子向量，每个元素都是模型的结果，包含线性回归对象的列表。我们可以通过索引来提取模型结果：</p>
+<pre class="r"><code>models$lmod[[1]]
+#&gt; 
+#&gt; Call:
+#&gt; lm(formula = log(price) ~ carat, data = .)
+#&gt; 
+#&gt; Coefficients:
+#&gt; (Intercept)        carat  
+#&gt;        6.78         1.25</code></pre>
+<p><strong>在需要完成高度定制的操作时，<code>do()</code>的优势非常明显</strong>。下面举例。</p>
+<p><strong>假如我们需要分析<code>toy_tests</code>数据，要对每种产品的质量和耐久性进行汇总。如果只需要样本数最多的3个测试记录，并且每个产品的质量和耐久性是经样本数加权的平均数</strong>，下面是做法。</p>
+<pre class="r"><code>toy_tests %&gt;% 
+    group_by(id) %&gt;% 
+    arrange(desc(sample)) %&gt;% 
+    do(head(., 3)) %&gt;% 
+    summarise(
+        quality = sum(quality * sample) / sum(sample),
+        durability = sum(durability * sample) / sum(sample)
+    )
+#&gt; # A tibble: 2 x 3
+#&gt;   id    quality durability
+#&gt;   &lt;chr&gt;   &lt;dbl&gt;      &lt;dbl&gt;
+#&gt; 1 T01      9.32       9.38
+#&gt; 2 T02      9.04       8.34</code></pre>
+<p>为了查看中间结果，可以运行<code>do()</code>之前的代码：</p>
+<pre class="r"><code>toy_tests %&gt;% 
+    group_by(id) %&gt;% 
+    arrange(desc(sample))
+#&gt; # A tibble: 8 x 6
+#&gt; # Groups:   id [2]
+#&gt;   id        date sample quality durability ym    
+#&gt;   &lt;chr&gt;    &lt;int&gt;  &lt;int&gt;   &lt;int&gt;      &lt;int&gt; &lt;chr&gt; 
+#&gt; 1 T01   20160405    180       9         10 201604
+#&gt; 2 T01   20160302    150      10          9 201603
+#&gt; 3 T01   20160502    140       9          9 201605
+#&gt; 4 T01   20160201    100       9          9 201602
+#&gt; 5 T02   20160403     90       9          8 201604
+#&gt; 6 T02   20160502     85      10          9 201605
+#&gt; 7 T02   20160303     75       8          8 201603
+#&gt; 8 T02   20160201     70       7          9 201602</code></pre>
+</div>
+<div id="rlist" class="section level2">
+<h2>使用rlist包处理嵌套数据结构</h2>
+<p>在R中，最常见的嵌套数据结构是列表对象，之前关注的都是操作表格数据，这部分我们一起玩转<strong><code>rlist</code>包，它是针对非表格数据设计的包</strong>。</p>
+<p><code>rlist</code>的设计与<code>dplyr</code>非常相似，它提供了针对列表对象的映射、筛选、选择、排序和聚合功能。</p>
+<p>安装：</p>
+<pre class="r"><code>install.packages(&quot;rlist&quot;)</code></pre>
+<p>载入：</p>
+<pre class="r"><code>library(rlist)</code></pre>
+<p><strong>为了把数据以列表形式载入R，我们需要用<code>jsonlite::fromJSON()</code>或者直接使用<code>rlist</code>提供的<code>list.load()</code>函数</strong>（这里我找不到原作者的数据文件，所以自己谷歌找了类似的学习下）：</p>
+<pre class="r"><code>products = list.load(&quot;../../R/dataset/products.json&quot;)</code></pre>
+<p><code>products</code>的每个成分都包含产品所有信息，使用<code>list.map()</code>可以在每个成分的语义中计算表达式：</p>
+<pre class="r"><code>str(list.map(products, id))
+#&gt; List of 66
+#&gt;  $ : chr &quot;amazonite&quot;
+#&gt;  $ : chr &quot;amber&quot;
+#&gt;  $ : chr &quot;amethyst&quot;
+#&gt;  $ : chr &quot;ametrine&quot;
+#&gt;  $ : chr &quot;apophyllite&quot;
+#&gt;  $ : chr &quot;aquamarine&quot;
+#&gt;  $ : chr &quot;aragonite&quot;
+#&gt;  $ : chr &quot;azurite&quot;
+#&gt;  $ : chr &quot;barite&quot;
+#&gt;  $ : chr &quot;bismuth&quot;
+#&gt;  $ : chr &quot;black_tourmaline&quot;
+#&gt;  $ : chr &quot;bloodstone&quot;
+#&gt;  $ : chr &quot;blue_calcite&quot;
+#&gt;  $ : chr &quot;kyanite&quot;
+#&gt;  $ : chr &quot;carnelian&quot;
+#&gt;  $ : chr &quot;celestite&quot;
+#&gt;  $ : chr &quot;chrysocolla&quot;
+#&gt;  $ : chr &quot;chrysoprase&quot;
+#&gt;  $ : chr &quot;citrine&quot;
+#&gt;  $ : chr &quot;copper&quot;
+#&gt;  $ : chr &quot;dalmatian_stone&quot;
+#&gt;  $ : chr &quot;danburite&quot;
+#&gt;  $ : chr &quot;desert_rose&quot;
+#&gt;  $ : chr &quot;emerald&quot;
+#&gt;  $ : chr &quot;epidote&quot;
+#&gt;  $ : chr &quot;fluorite&quot;
+#&gt;  $ : chr &quot;garnet&quot;
+#&gt;  $ : chr &quot;green_calcite&quot;
+#&gt;  $ : chr &quot;hematite&quot;
+#&gt;  $ : chr &quot;honey_calcite&quot;
+#&gt;  $ : chr &quot;howlite&quot;
+#&gt;  $ : chr &quot;jasper&quot;
+#&gt;  $ : chr &quot;jet&quot;
+#&gt;  $ : chr &quot;kunzite&quot;
+#&gt;  $ : chr &quot;labradorite&quot;
+#&gt;  $ : chr &quot;lapis_lazuli&quot;
+#&gt;  $ : chr &quot;lemon_quartz&quot;
+#&gt;  $ : chr &quot;lemurian_quartz&quot;
+#&gt;  $ : chr &quot;lepidolite&quot;
+#&gt;  $ : chr &quot;libyan_gold_tektite&quot;
+#&gt;  $ : chr &quot;magnesite&quot;
+#&gt;  $ : chr &quot;malachite&quot;
+#&gt;  $ : chr &quot;meteorite&quot;
+#&gt;  $ : chr &quot;moldavite&quot;
+#&gt;  $ : chr &quot;moonstone&quot;
+#&gt;  $ : chr &quot;orange_calcite&quot;
+#&gt;  $ : chr &quot;peridot&quot;
+#&gt;  $ : chr &quot;pyrite&quot;
+#&gt;  $ : chr &quot;quartz&quot;
+#&gt;  $ : chr &quot;rhodochrosite&quot;
+#&gt;  $ : chr &quot;rhodonite&quot;
+#&gt;  $ : chr &quot;rose_quartz&quot;
+#&gt;  $ : chr &quot;ruby&quot;
+#&gt;  $ : chr &quot;scolecite&quot;
+#&gt;  $ : chr &quot;selenite&quot;
+#&gt;  $ : chr &quot;serpentine&quot;
+#&gt;  $ : chr &quot;shungite&quot;
+#&gt;  $ : chr &quot;smoky_quartz&quot;
+#&gt;  $ : chr &quot;sodalite&quot;
+#&gt;  $ : chr &quot;tektite&quot;
+#&gt;  $ : chr &quot;tibetan_black_quartz&quot;
+#&gt;  $ : chr &quot;tigers_eye&quot;
+#&gt;  $ : chr &quot;titanium_quartz&quot;
+#&gt;  $ : chr &quot;tourmalined_quartz&quot;
+#&gt;  $ : chr &quot;turquoise&quot;
+#&gt;  $ : chr &quot;vanadinite&quot;</code></pre>
+<p><code>list.mapv()</code>简化这个列表，返回一个向量：</p>
+<pre class="r"><code>list.mapv(products, name)
+#&gt;  [1] &quot;Amazonite&quot;            &quot;Amber&quot;                &quot;Amethyst&quot;            
+#&gt;  [4] &quot;Ametrine&quot;             &quot;Apophyllite&quot;          &quot;Aquamarine&quot;          
+#&gt;  [7] &quot;Aragonite&quot;            &quot;Azurite&quot;              &quot;Barite&quot;              
+#&gt; [10] &quot;Bismuth&quot;              &quot;Black Tourmaline&quot;     &quot;Bloodstone&quot;          
+#&gt; [13] &quot;Blue Calcite&quot;         &quot;Blue Kyanite&quot;         &quot;Carnelian&quot;           
+#&gt; [16] &quot;Celestite&quot;            &quot;Chrysocolla&quot;          &quot;Chrysoprase&quot;         
+#&gt; [19] &quot;Citrine&quot;              &quot;Copper&quot;               &quot;Dalmatian Stone&quot;     
+#&gt; [22] &quot;Danburite&quot;            &quot;Desert Rose&quot;          &quot;Emerald&quot;             
+#&gt; [25] &quot;Epidote&quot;              &quot;Fluorite&quot;             &quot;Garnet&quot;              
+#&gt; [28] &quot;Green Calcite&quot;        &quot;Hematite&quot;             &quot;Honey Calcite&quot;       
+#&gt; [31] &quot;Howlite&quot;              &quot;Jasper&quot;               &quot;Jet&quot;                 
+#&gt; [34] &quot;Kunzite&quot;              &quot;Labradorite&quot;          &quot;Lapis Lazuli&quot;        
+#&gt; [37] &quot;Lemon Quartz&quot;         &quot;Lemurian Quartz&quot;      &quot;Lepidolite&quot;          
+#&gt; [40] &quot;Libyan Gold Tektite&quot;  &quot;Magnesite&quot;            &quot;Malachite&quot;           
+#&gt; [43] &quot;Meteorite&quot;            &quot;Moldavite&quot;            &quot;Moonstone&quot;           
+#&gt; [46] &quot;Orange Calcite&quot;       &quot;Peridot&quot;              &quot;Pyrite&quot;              
+#&gt; [49] &quot;Quartz&quot;               &quot;Rhodochrosite&quot;        &quot;Rhodonite&quot;           
+#&gt; [52] &quot;Rose Quartz&quot;          &quot;Ruby&quot;                 &quot;Scolecite&quot;           
+#&gt; [55] &quot;Selenite&quot;             &quot;Serpentine&quot;           &quot;Shungite&quot;            
+#&gt; [58] &quot;Smoky Quartz&quot;         &quot;Sodalite&quot;             &quot;Tektite&quot;             
+#&gt; [61] &quot;Tibetan Black Quartz&quot; &quot;Tiger Eye&quot;            &quot;Titanium Quartz&quot;     
+#&gt; [64] &quot;Tourmalined Quartz&quot;   &quot;Turquoise&quot;            &quot;Vanadinite&quot;</code></pre>
+<p>为了对products进行筛选，我们可以使用<code>list.filter()</code>，只有所有条件都为<code>TRUE</code>的<code>products</code>元素才会被返回：</p>
 </div>

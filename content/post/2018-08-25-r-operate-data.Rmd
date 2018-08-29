@@ -18,6 +18,7 @@ knitr::opts_chunk$set(collapse = TRUE, dev = "png", comment = "#>")
 #Sys.setlocale('LC_ALL','C') # Embed this directly in the Rmarkdown script that contains the Chinese character comment
 options(digits=3)
 options(max.print=200)
+library(tidyverse)
 ```
 
 >本文内容：
@@ -1059,7 +1060,5 @@ list.mapv(products, name)
 
 为了对products进行筛选，我们可以使用`list.filter()`，只有所有条件都为`TRUE`的`products`元素才会被返回：
 
-```{r}
 
-```
 
