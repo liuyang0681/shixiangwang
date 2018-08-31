@@ -1,0 +1,254 @@
+---
+title: "效率提升"
+author: 王诗翔
+date: 2018-08-31
+slug: "improve-effiency"
+categories: 
+    - R
+tags:
+    - rmarkdown
+    - shiny
+
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(collapse = TRUE, dev = "png", comment = "#>")
+#Sys.setlocale('LC_ALL','C') # Embed this directly in the Rmarkdown script that contains the Chinese character comment
+options(digits=3)
+options(max.print=200)
+```
+
+## Rmarkdown
+
+Rmarkdown扩展了markdown的语法，所以markdown能写的，Rmarkdown能写，后者还提供了一些新的特性，特别是图表，很nice。
+
+markdown的语法非常非常简单，用上一天就熟悉了，还没学过的随便百度谷歌下，教程已经烂大街了，如果你实在要我推荐，就看看我之前写的[【软件推荐|markdown】Typora简介及Markdown语法精讲](https://www.jianshu.com/p/a289a8c4c606)吧。
+
+### 嵌入表格和图表
+
+这也是rmarkdown吸引人的地方，通过R代码直接输出表格和图！这有赖于益辉大神写的knitr包。
+
+先出个表试试，写个数据框：
+
+```{r}
+toys = data.frame(
+    id = 1:3,
+    name = c("Car", "Plane", "Motocycle"),
+    price = c(15, 25, 14),
+    share = c(0.3, 0.1, 0.2),
+    stringsAsFactors = FALSE
+)
+```
+
+纯文本输出为：
+
+```{r}
+toys
+```
+
+使用`knitr::kable()`生成markdown版本的表格：
+
+```{r}
+knitr::kable(toys)
+```
+
+网页显示是上面这样的，实际markdown是下面这样：
+
+```
+| id|name      | price| share|
+|--:|:---------|-----:|-----:|
+|  1|Car       |    15|   0.3|
+|  2|Plane     |    25|   0.1|
+|  3|Motocycle |    14|   0.2|
+```
+
+还有其他一些扩展包可以渲染表格，例如`xtable`包可以将`data.frame`转换为LaTeX，还提供了呈现统计模型的模板：
+
+```{r}
+xtable::xtable(lm(mpg ~ cyl + vs, data = mtcars))
+```
+
+Excel是著名的分析软件，其中一个特性是条件化格式操作，任坤大神开发了`formattable`包来实现这样的特性，它能够使数据框中的单元格显示更多的比较信息：
+
+```{r, eval = FALSE}
+install.packages("formattable")
+```
+
+下面使用看看：
+
+```{r}
+library(formattable)
+formattable(toys,
+            list(price = color_bar("lightpink"), share = percent))
+```
+
+将巨大的表格直接嵌入文档并不是个好主意，JavaScript库（例如DataTables）可以很方便将大数据集嵌入网页中，它可以自动执行分页，也支持搜索与筛选。名为DT的R包可以利用这个库，实现交互式操作，方便探索大数据集。
+
+```{r}
+library(DT)
+datatable(mtcars)
+```
+
+R社区还有其他高质量的javascript库值得大家探索。
+
+下面说说如何嵌入图。
+
+一般的图非常简单，和平常写R代码一样，不过不在`.R`中写，而是在`.Rmd`中写，将你的代码写入如下的代码框中，使用Control+Alt+i可以直接插入一个代码框。就是说重点是代码，图R会帮我们自动生成，比如下面这个图：
+
+```{r}
+set.seed(123)
+x = rnorm(1000)
+y = 2 * x + rnorm(1000)
+m = lm(y ~ x)
+plot(x, y, main = "Linear regression", col = "darkgray")
+abline(coef(m))
+```
+
+除了基本的绘图函数与ggplot2包，我们还可以使用其他，例如DiagrammeR包绘制流程图等。
+
+下面生成一个有向图：
+
+```{r}
+library(DiagrammeR)
+grViz("
+      digraph rmarkdown {
+      A -> B
+      B -> C
+      C -> A
+      }")
+```
+
+这个包使用Graphviz描述图的结构和样式。有这种需求就去看文档。
+
+### 嵌入交互图
+
+前面演示的都是静态的，现在咱们来玩动态的。
+
+`ggvis`是RStudio开发的一个交互图扩展包，她利用Vega作为后端支持。
+
+```{r}
+library(ggvis)
+mtcars %>% 
+    ggvis(~mpg, ~disp, opacity := 0.6) %>% 
+    layer_points(size := input_slider(1, 100, value = 50, label = "size")) %>% 
+    layer_smooths(span = input_slider(0.5, 1, value = 1, label = "span"))
+```
+
+
+![](/figures/ggvis.png)
+
+
+这个包的语法有点像ggplot2，最好配合管道符号使用。
+
+还有一个扩展包dygraphs专门用于绘制交互功能的时间序列数据。
+
+
+## 创建Shiny交互式应用程序
+
+shiny由RStudio开发，不同于前面的动图，它可以在web浏览器中运行。
+
+一个shiny应用程序基本由两个重要部分组成：**一个是Web浏览器交互的HTTP服务器，另一个是HTTP服务器交互的R会话**。
+
+下面我们写一个最小的shiny应用程序，写一个R脚本定义它的用户界面和服务器逻辑，用户界面是一个`boostrapPage`，它包含一个`numericInput`用于接收一个整数表示样本容量，一个`textOutput`用于返回随机样本的均值。服务器背后的逻辑是根据输入`input`的样本容量`n`生成随机数，计算随机样本的均值，并将结果放在`output`中。
+
+```{r, eval = F}
+library(shiny)
+
+ui = bootstrapPage(
+    numericInput("n", label = "Sample size", value = 10, min = 10, max = 100),
+    textOutput("mean")
+)
+
+server = function(input, output){
+    output$mean = renderText(mean(rnorm(input$n)))
+}
+
+app = shinyApp(ui, server)
+runApp(app)
+```
+
+![](/figures/easy_shiny.png)
+
+尽管这个例子很简单，但它演示了shiny应用程序的基本组件。
+
+下面我们看一个复杂有用的例子：可视化几何布朗运动的许多路径，几何布朗运动常用于股票价格建模，运动的结果取决于初始值、预期增长率、波动率、持续时间和周期数。除了设定T=1外，我们允许用户修改其他所有参数。
+
+我们可以根据想展示给用户的参数来定义shiny应用程序的用户界面，shiny提供了丰富的输入控件：
+
+```{r}
+shiny_vars = ls(getNamespace("shiny"))
+shiny_vars[grep("Input$", shiny_vars)]
+```
+
+另外我们允许用户指定随机种子数来确保相同的种子生成相同的路径。
+
+下面是shiny提供的输出控件：
+
+```{r}
+shiny_vars[grep("Output$", shiny_vars)]
+```
+
+
+下面写代码：
+
+```{r, eval=F}
+library(shiny)
+
+ui = fluidPage(
+    titlePanel("Random walk"),
+    sidebarLayout(
+        sidebarPanel(
+            numericInput("seed", "Random seed", 123),
+            sliderInput("paths", "Paths", 1, 100, 1),
+            sliderInput("start", "Starting value", 1, 10, 1, 1),
+            sliderInput("r", "Expected return", -0.1, 0.1, 0, 0.001),
+            sliderInput("sigma", "Sigma", 0.001, 1, 0.01, 0.001),
+            sliderInput("periods", "Periods", 10, 1000, 200, 10)
+        ),
+        mainPanel(
+            plotOutput("plot", width = "100%", height = "600px")
+        )
+    )
+)
+```
+
+接下来我们实现服务器逻辑，首先设置随机数，然后迭代调用`sde::GBM`，这个包要先安装。
+
+GMB生成一条路径，`sapply()`将所有生成的路径组合成一个矩阵，矩阵的每一列代表一条路径，然后使用`matplot()`画图。
+
+无论是文本，图形还是表格，计算都是在`render*`函数中完成，目前有下面一些：
+
+```{r}
+shiny_vars[grep("^render", shiny_vars)]
+```
+
+这个例子我们只需要调用`renderPlot()`。
+
+```{r}
+server = function(input, output){
+    output$plot = renderPlot({
+        set.seed(input$seed)
+        mat = sapply(seq_len(input$paths), function(i){
+            sde::GBM(input$start,
+                     input$r,
+                     input$sigma,
+                     1,
+                     input$periods)
+        })
+        
+        matplot(mat, type = "l", lty = 1, main = "Geometric Brownian motions")
+    })
+}
+```
+
+然后创建并运行`shiny`：
+
+```{r, eval=F}
+app = shinyApp(ui, server)
+runApp(app)
+```
+
+![](/figures/random_walk.png)
+
+

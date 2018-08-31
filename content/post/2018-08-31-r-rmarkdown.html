@@ -1,0 +1,517 @@
+---
+title: "效率提升"
+author: 王诗翔
+date: 2018-08-31
+slug: "improve-effiency"
+categories: 
+    - R
+tags:
+    - rmarkdown
+    - shiny
+
+---
+
+<script src="/rmarkdown-libs/htmlwidgets/htmlwidgets.js"></script>
+<script src="/rmarkdown-libs/jquery/jquery.min.js"></script>
+<link href="/rmarkdown-libs/datatables-css/datatables-crosstalk.css" rel="stylesheet" />
+<script src="/rmarkdown-libs/datatables-binding/datatables.js"></script>
+<link href="/rmarkdown-libs/dt-core/css/jquery.dataTables.min.css" rel="stylesheet" />
+<link href="/rmarkdown-libs/dt-core/css/jquery.dataTables.extra.css" rel="stylesheet" />
+<script src="/rmarkdown-libs/dt-core/js/jquery.dataTables.min.js"></script>
+<link href="/rmarkdown-libs/crosstalk/css/crosstalk.css" rel="stylesheet" />
+<script src="/rmarkdown-libs/crosstalk/js/crosstalk.min.js"></script>
+<script src="/rmarkdown-libs/viz/viz.js"></script>
+<link href="/rmarkdown-libs/DiagrammeR-styles/styles.css" rel="stylesheet" />
+<script src="/rmarkdown-libs/grViz-binding/grViz.js"></script>
+<script src="/rmarkdown-libs/detect-resize/jquery.resize.js"></script>
+<link href="/rmarkdown-libs/jquery-ui/jquery-ui.min.css" rel="stylesheet" />
+<script src="/rmarkdown-libs/jquery-ui/jquery-ui.min.js"></script>
+<script src="/rmarkdown-libs/d3/d3.min.js"></script>
+<script src="/rmarkdown-libs/vega/vega.min.js"></script>
+<script src="/rmarkdown-libs/lodash/lodash.min.js"></script>
+<script>var lodash = _.noConflict();</script>
+<link href="/rmarkdown-libs/ggvis/css/ggvis.css" rel="stylesheet" />
+<script src="/rmarkdown-libs/ggvis/js/ggvis.js"></script>
+
+
+<div id="rmarkdown" class="section level2">
+<h2>Rmarkdown</h2>
+<p>Rmarkdown扩展了markdown的语法，所以markdown能写的，Rmarkdown能写，后者还提供了一些新的特性，特别是图表，很nice。</p>
+<p>markdown的语法非常非常简单，用上一天就熟悉了，还没学过的随便百度谷歌下，教程已经烂大街了，如果你实在要我推荐，就看看我之前写的<a href="https://www.jianshu.com/p/a289a8c4c606">【软件推荐|markdown】Typora简介及Markdown语法精讲</a>吧。</p>
+<div class="section level3">
+<h3>嵌入表格和图表</h3>
+<p>这也是rmarkdown吸引人的地方，通过R代码直接输出表格和图！这有赖于益辉大神写的knitr包。</p>
+<p>先出个表试试，写个数据框：</p>
+<pre class="r"><code>toys = data.frame(
+    id = 1:3,
+    name = c(&quot;Car&quot;, &quot;Plane&quot;, &quot;Motocycle&quot;),
+    price = c(15, 25, 14),
+    share = c(0.3, 0.1, 0.2),
+    stringsAsFactors = FALSE
+)</code></pre>
+<p>纯文本输出为：</p>
+<pre class="r"><code>toys
+#&gt;   id      name price share
+#&gt; 1  1       Car    15   0.3
+#&gt; 2  2     Plane    25   0.1
+#&gt; 3  3 Motocycle    14   0.2</code></pre>
+<p>使用<code>knitr::kable()</code>生成markdown版本的表格：</p>
+<pre class="r"><code>knitr::kable(toys)</code></pre>
+<table>
+<thead>
+<tr class="header">
+<th align="right">id</th>
+<th align="left">name</th>
+<th align="right">price</th>
+<th align="right">share</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="right">1</td>
+<td align="left">Car</td>
+<td align="right">15</td>
+<td align="right">0.3</td>
+</tr>
+<tr class="even">
+<td align="right">2</td>
+<td align="left">Plane</td>
+<td align="right">25</td>
+<td align="right">0.1</td>
+</tr>
+<tr class="odd">
+<td align="right">3</td>
+<td align="left">Motocycle</td>
+<td align="right">14</td>
+<td align="right">0.2</td>
+</tr>
+</tbody>
+</table>
+<p>网页显示是上面这样的，实际markdown是下面这样：</p>
+<pre><code>| id|name      | price| share|
+|--:|:---------|-----:|-----:|
+|  1|Car       |    15|   0.3|
+|  2|Plane     |    25|   0.1|
+|  3|Motocycle |    14|   0.2|</code></pre>
+<p>还有其他一些扩展包可以渲染表格，例如<code>xtable</code>包可以将<code>data.frame</code>转换为LaTeX，还提供了呈现统计模型的模板：</p>
+<pre class="r"><code>xtable::xtable(lm(mpg ~ cyl + vs, data = mtcars))
+#&gt; % latex table generated in R 3.5.1 by xtable 1.8-2 package
+#&gt; % Fri Aug 31 18:39:26 2018
+#&gt; \begin{table}[ht]
+#&gt; \centering
+#&gt; \begin{tabular}{rrrrr}
+#&gt;   \hline
+#&gt;  &amp; Estimate &amp; Std. Error &amp; t value &amp; Pr($&gt;$$|$t$|$) \\ 
+#&gt;   \hline
+#&gt; (Intercept) &amp; 39.6250 &amp; 4.2246 &amp; 9.38 &amp; 0.0000 \\ 
+#&gt;   cyl &amp; -3.0907 &amp; 0.5581 &amp; -5.54 &amp; 0.0000 \\ 
+#&gt;   vs &amp; -0.9391 &amp; 1.9775 &amp; -0.47 &amp; 0.6384 \\ 
+#&gt;    \hline
+#&gt; \end{tabular}
+#&gt; \end{table}</code></pre>
+<p>Excel是著名的分析软件，其中一个特性是条件化格式操作，任坤大神开发了<code>formattable</code>包来实现这样的特性，它能够使数据框中的单元格显示更多的比较信息：</p>
+<pre class="r"><code>install.packages(&quot;formattable&quot;)</code></pre>
+<p>下面使用看看：</p>
+<pre class="r"><code>library(formattable)
+formattable(toys,
+            list(price = color_bar(&quot;lightpink&quot;), share = percent))</code></pre>
+<table class="table table-condensed">
+<thead>
+<tr>
+<th style="text-align:right;">
+id
+</th>
+<th style="text-align:right;">
+name
+</th>
+<th style="text-align:right;">
+price
+</th>
+<th style="text-align:right;">
+share
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:right;">
+1
+</td>
+<td style="text-align:right;">
+Car
+</td>
+<td style="text-align:right;">
+<span style="display: inline-block; direction: rtl; border-radius: 4px; padding-right: 2px; background-color: lightpink; width: 60.00%">15</span>
+</td>
+<td style="text-align:right;">
+30.00%
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+2
+</td>
+<td style="text-align:right;">
+Plane
+</td>
+<td style="text-align:right;">
+<span style="display: inline-block; direction: rtl; border-radius: 4px; padding-right: 2px; background-color: lightpink; width: 100.00%">25</span>
+</td>
+<td style="text-align:right;">
+10.00%
+</td>
+</tr>
+<tr>
+<td style="text-align:right;">
+3
+</td>
+<td style="text-align:right;">
+Motocycle
+</td>
+<td style="text-align:right;">
+<span style="display: inline-block; direction: rtl; border-radius: 4px; padding-right: 2px; background-color: lightpink; width: 56.00%">14</span>
+</td>
+<td style="text-align:right;">
+20.00%
+</td>
+</tr>
+</tbody>
+</table>
+<p>将巨大的表格直接嵌入文档并不是个好主意，JavaScript库（例如DataTables）可以很方便将大数据集嵌入网页中，它可以自动执行分页，也支持搜索与筛选。名为DT的R包可以利用这个库，实现交互式操作，方便探索大数据集。</p>
+<pre class="r"><code>library(DT)
+datatable(mtcars)</code></pre>
+<div id="htmlwidget-1" style="width:100%;height:auto;" class="datatables html-widget"></div>
+<script type="application/json" data-for="htmlwidget-1">{"x":{"filter":"none","data":[["Mazda RX4","Mazda RX4 Wag","Datsun 710","Hornet 4 Drive","Hornet Sportabout","Valiant","Duster 360","Merc 240D","Merc 230","Merc 280","Merc 280C","Merc 450SE","Merc 450SL","Merc 450SLC","Cadillac Fleetwood","Lincoln Continental","Chrysler Imperial","Fiat 128","Honda Civic","Toyota Corolla","Toyota Corona","Dodge Challenger","AMC Javelin","Camaro Z28","Pontiac Firebird","Fiat X1-9","Porsche 914-2","Lotus Europa","Ford Pantera L","Ferrari Dino","Maserati Bora","Volvo 142E"],[21,21,22.8,21.4,18.7,18.1,14.3,24.4,22.8,19.2,17.8,16.4,17.3,15.2,10.4,10.4,14.7,32.4,30.4,33.9,21.5,15.5,15.2,13.3,19.2,27.3,26,30.4,15.8,19.7,15,21.4],[6,6,4,6,8,6,8,4,4,6,6,8,8,8,8,8,8,4,4,4,4,8,8,8,8,4,4,4,8,6,8,4],[160,160,108,258,360,225,360,146.7,140.8,167.6,167.6,275.8,275.8,275.8,472,460,440,78.7,75.7,71.1,120.1,318,304,350,400,79,120.3,95.1,351,145,301,121],[110,110,93,110,175,105,245,62,95,123,123,180,180,180,205,215,230,66,52,65,97,150,150,245,175,66,91,113,264,175,335,109],[3.9,3.9,3.85,3.08,3.15,2.76,3.21,3.69,3.92,3.92,3.92,3.07,3.07,3.07,2.93,3,3.23,4.08,4.93,4.22,3.7,2.76,3.15,3.73,3.08,4.08,4.43,3.77,4.22,3.62,3.54,4.11],[2.62,2.875,2.32,3.215,3.44,3.46,3.57,3.19,3.15,3.44,3.44,4.07,3.73,3.78,5.25,5.424,5.345,2.2,1.615,1.835,2.465,3.52,3.435,3.84,3.845,1.935,2.14,1.513,3.17,2.77,3.57,2.78],[16.46,17.02,18.61,19.44,17.02,20.22,15.84,20,22.9,18.3,18.9,17.4,17.6,18,17.98,17.82,17.42,19.47,18.52,19.9,20.01,16.87,17.3,15.41,17.05,18.9,16.7,16.9,14.5,15.5,14.6,18.6],[0,0,1,1,0,1,0,1,1,1,1,0,0,0,0,0,0,1,1,1,1,0,0,0,0,1,0,1,0,0,0,1],[1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,0,0,0,0,0,1,1,1,1,1,1,1],[4,4,4,3,3,3,3,4,4,4,4,3,3,3,3,3,3,4,4,4,3,3,3,3,3,4,5,5,5,5,5,4],[4,4,1,1,2,1,4,2,2,4,4,3,3,3,4,4,4,1,2,1,1,2,2,4,2,1,2,2,4,6,8,2]],"container":"<table class=\"display\">\n  <thead>\n    <tr>\n      <th> <\/th>\n      <th>mpg<\/th>\n      <th>cyl<\/th>\n      <th>disp<\/th>\n      <th>hp<\/th>\n      <th>drat<\/th>\n      <th>wt<\/th>\n      <th>qsec<\/th>\n      <th>vs<\/th>\n      <th>am<\/th>\n      <th>gear<\/th>\n      <th>carb<\/th>\n    <\/tr>\n  <\/thead>\n<\/table>","options":{"columnDefs":[{"className":"dt-right","targets":[1,2,3,4,5,6,7,8,9,10,11]},{"orderable":false,"targets":0}],"order":[],"autoWidth":false,"orderClasses":false}},"evals":[],"jsHooks":[]}</script>
+<p>R社区还有其他高质量的javascript库值得大家探索。</p>
+<p>下面说说如何嵌入图。</p>
+<p>一般的图非常简单，和平常写R代码一样，不过不在<code>.R</code>中写，而是在<code>.Rmd</code>中写，将你的代码写入如下的代码框中，使用Control+Alt+i可以直接插入一个代码框。就是说重点是代码，图R会帮我们自动生成，比如下面这个图：</p>
+<pre class="r"><code>set.seed(123)
+x = rnorm(1000)
+y = 2 * x + rnorm(1000)
+m = lm(y ~ x)
+plot(x, y, main = &quot;Linear regression&quot;, col = &quot;darkgray&quot;)
+abline(coef(m))</code></pre>
+<p><img src="/post/2018-08-31-r-rmarkdown_files/figure-html/unnamed-chunk-8-1.png" width="672" /></p>
+<p>除了基本的绘图函数与ggplot2包，我们还可以使用其他，例如DiagrammeR包绘制流程图等。</p>
+<p>下面生成一个有向图：</p>
+<pre class="r"><code>library(DiagrammeR)
+grViz(&quot;
+      digraph rmarkdown {
+      A -&gt; B
+      B -&gt; C
+      C -&gt; A
+      }&quot;)</code></pre>
+<div id="htmlwidget-2" style="width:672px;height:480px;" class="grViz html-widget"></div>
+<script type="application/json" data-for="htmlwidget-2">{"x":{"diagram":"\n      digraph rmarkdown {\n      A -> B\n      B -> C\n      C -> A\n      }","config":{"engine":"dot","options":null}},"evals":[],"jsHooks":[]}</script>
+<p>这个包使用Graphviz描述图的结构和样式。有这种需求就去看文档。</p>
+</div>
+<div class="section level3">
+<h3>嵌入交互图</h3>
+<p>前面演示的都是静态的，现在咱们来玩动态的。</p>
+<p><code>ggvis</code>是RStudio开发的一个交互图扩展包，她利用Vega作为后端支持。</p>
+<pre class="r"><code>library(ggvis)
+mtcars %&gt;% 
+    ggvis(~mpg, ~disp, opacity := 0.6) %&gt;% 
+    layer_points(size := input_slider(1, 100, value = 50, label = &quot;size&quot;)) %&gt;% 
+    layer_smooths(span = input_slider(0.5, 1, value = 1, label = &quot;span&quot;))
+#&gt; Warning: Can&#39;t output dynamic/interactive ggvis plots in a knitr document.
+#&gt; Generating a static (non-dynamic, non-interactive) version of the plot.</code></pre>
+<div id="plot_id364645699-container" class="ggvis-output-container">
+<div id="plot_id364645699" class="ggvis-output"></div>
+<div class="plot-gear-icon">
+<nav class="ggvis-control">
+<a class="ggvis-dropdown-toggle" title="Controls" onclick="return false;"></a>
+<ul class="ggvis-dropdown">
+<li>
+Renderer: 
+<a id="plot_id364645699_renderer_svg" class="ggvis-renderer-button" onclick="return false;" data-plot-id="plot_id364645699" data-renderer="svg">SVG</a>
+ | 
+<a id="plot_id364645699_renderer_canvas" class="ggvis-renderer-button" onclick="return false;" data-plot-id="plot_id364645699" data-renderer="canvas">Canvas</a>
+</li>
+<li>
+<a id="plot_id364645699_download" class="ggvis-download" data-plot-id="plot_id364645699">Download</a>
+</li>
+</ul>
+</nav>
+</div>
+</div>
+<script type="text/javascript">
+var plot_id364645699_spec = {
+  "data": [
+    {
+      "name": ".0",
+      "format": {
+        "type": "csv",
+        "parse": {
+          "mpg": "number",
+          "disp": "number",
+          "reactive_849536902": "number"
+        }
+      },
+      "values": "\"mpg\",\"disp\",\"reactive_849536902\"\n21,160,50\n21,160,50\n22.8,108,50\n21.4,258,50\n18.7,360,50\n18.1,225,50\n14.3,360,50\n24.4,146.7,50\n22.8,140.8,50\n19.2,167.6,50\n17.8,167.6,50\n16.4,275.8,50\n17.3,275.8,50\n15.2,275.8,50\n10.4,472,50\n10.4,460,50\n14.7,440,50\n32.4,78.7,50\n30.4,75.7,50\n33.9,71.1,50\n21.5,120.1,50\n15.5,318,50\n15.2,304,50\n13.3,350,50\n19.2,400,50\n27.3,79,50\n26,120.3,50\n30.4,95.1,50\n15.8,351,50\n19.7,145,50\n15,301,50\n21.4,121,50"
+    },
+    {
+      "name": ".0/model_prediction1",
+      "format": {
+        "type": "csv",
+        "parse": {
+          "pred_": "number",
+          "resp_": "number"
+        }
+      },
+      "values": "\"pred_\",\"resp_\"\n10.4,469.944085582724\n10.6974683544304,460.11116526221\n10.9949367088608,450.385876498424\n11.2924050632911,440.767017833619\n11.5898734177215,431.253387810047\n11.8873417721519,421.843784969962\n12.1848101265823,412.537007855617\n12.4822784810127,403.331855009263\n12.779746835443,394.227124973153\n13.0772151898734,385.221616289541\n13.3746835443038,376.314127500679\n13.6721518987342,367.503457148819\n13.9696202531646,358.788403776215\n14.2670886075949,350.167765925119\n14.5645569620253,341.640342137783\n14.8620253164557,333.199988062793\n15.1594936708861,324.838121561017\n15.4569620253165,316.592679568233\n15.7544303797468,308.46712514471\n16.0518987341772,300.419354644544\n16.3493670886076,292.460333872222\n16.646835443038,284.602049583936\n16.9443037974684,276.856488535879\n17.2417721518987,269.235637484244\n17.5392405063291,261.751483185224\n17.8367088607595,254.414651213038\n18.1341772151899,247.13853416073\n18.4316455696203,239.908415727479\n18.7291139240506,232.784429647088\n19.026582278481,225.826709653361\n19.3240506329114,219.062717650692\n19.6215189873418,212.275651964895\n19.9189873417722,205.468229267086\n20.2164556962025,198.707402734716\n20.5139240506329,192.060125545235\n20.8113924050633,185.593350876093\n21.1088607594937,179.374031904742\n21.4063291139241,173.46900614443\n21.7037974683544,167.68967218429\n22.0012658227848,161.909425846727\n22.2987341772152,156.256133130697\n22.5962025316456,150.857660035157\n22.8936708860759,145.826109697538\n23.1911392405063,141.025063428701\n23.4886075949367,136.390286117351\n23.7860759493671,131.922186381691\n24.0835443037975,127.621172839925\n24.3810126582278,123.487654110257\n24.6784810126582,119.522038810889\n24.9759493670886,115.724735560027\n25.273417721519,112.096152975872\n25.5708860759494,108.63669967663\n25.8683544303797,105.346784280503\n26.1658227848101,102.226815405696\n26.4632911392405,99.2772016704123\n26.7607594936709,96.498351692855\n27.0582278481013,93.8906740912279\n27.3556962025316,91.4545774837351\n27.653164556962,89.1904704885799\n27.9506329113924,87.0987617239661\n28.2481012658228,85.1798598080973\n28.5455696202532,83.4341733591772\n28.8430379746835,81.8621109954095\n29.1405063291139,80.4640813349978\n29.4379746835443,79.2404929961457\n29.7354430379747,78.191754597057\n30.0329113924051,77.3182747559354\n30.3303797468354,76.6204620909843\n30.6278481012658,76.0973979852271\n30.9253164556962,75.7461242770252\n31.2227848101266,75.5663662393616\n31.520253164557,75.5579679072062\n31.8177215189873,75.7207733155287\n32.1151898734177,76.054626499299\n32.4126582278481,76.5593714934869\n32.7101265822785,77.2348523330623\n33.0075949367089,78.080913052995\n33.3050632911392,79.0973976882547\n33.6025316455696,80.2841502738113\n33.9,81.6410148446347"
+    },
+    {
+      "name": "scale/x",
+      "format": {
+        "type": "csv",
+        "parse": {
+          "domain": "number"
+        }
+      },
+      "values": "\"domain\"\n9.225\n35.075"
+    },
+    {
+      "name": "scale/y",
+      "format": {
+        "type": "csv",
+        "parse": {
+          "domain": "number"
+        }
+      },
+      "values": "\"domain\"\n51.055\n492.045"
+    }
+  ],
+  "scales": [
+    {
+      "name": "x",
+      "domain": {
+        "data": "scale/x",
+        "field": "data.domain"
+      },
+      "zero": false,
+      "nice": false,
+      "clamp": false,
+      "range": "width"
+    },
+    {
+      "name": "y",
+      "domain": {
+        "data": "scale/y",
+        "field": "data.domain"
+      },
+      "zero": false,
+      "nice": false,
+      "clamp": false,
+      "range": "height"
+    }
+  ],
+  "marks": [
+    {
+      "type": "symbol",
+      "properties": {
+        "update": {
+          "fill": {
+            "value": "#000000"
+          },
+          "opacity": {
+            "value": 0.6
+          },
+          "x": {
+            "scale": "x",
+            "field": "data.mpg"
+          },
+          "y": {
+            "scale": "y",
+            "field": "data.disp"
+          },
+          "size": {
+            "field": "data.reactive_849536902"
+          }
+        },
+        "ggvis": {
+          "data": {
+            "value": ".0"
+          }
+        }
+      },
+      "from": {
+        "data": ".0"
+      }
+    },
+    {
+      "type": "line",
+      "properties": {
+        "update": {
+          "stroke": {
+            "value": "#000000"
+          },
+          "opacity": {
+            "value": 0.6
+          },
+          "strokeWidth": {
+            "value": 2
+          },
+          "x": {
+            "scale": "x",
+            "field": "data.pred_"
+          },
+          "y": {
+            "scale": "y",
+            "field": "data.resp_"
+          },
+          "fill": {
+            "value": "transparent"
+          }
+        },
+        "ggvis": {
+          "data": {
+            "value": ".0/model_prediction1"
+          }
+        }
+      },
+      "from": {
+        "data": ".0/model_prediction1"
+      }
+    }
+  ],
+  "legends": [],
+  "axes": [
+    {
+      "type": "x",
+      "scale": "x",
+      "orient": "bottom",
+      "layer": "back",
+      "grid": true,
+      "title": "mpg"
+    },
+    {
+      "type": "y",
+      "scale": "y",
+      "orient": "left",
+      "layer": "back",
+      "grid": true,
+      "title": "disp"
+    }
+  ],
+  "padding": null,
+  "ggvis_opts": {
+    "keep_aspect": false,
+    "resizable": true,
+    "padding": {},
+    "duration": 250,
+    "renderer": "svg",
+    "hover_duration": 0,
+    "width": 672,
+    "height": 480
+  },
+  "handlers": null
+};
+ggvis.getPlot("plot_id364645699").parseSpec(plot_id364645699_spec);
+</script>
+<div class="figure">
+<img src="/figures/ggvis.png" />
+
+</div>
+<p>这个包的语法有点像ggplot2，最好配合管道符号使用。</p>
+<p>还有一个扩展包dygraphs专门用于绘制交互功能的时间序列数据。</p>
+</div>
+</div>
+<div id="shiny" class="section level2">
+<h2>创建Shiny交互式应用程序</h2>
+<p>shiny由RStudio开发，不同于前面的动图，它可以在web浏览器中运行。</p>
+<p>一个shiny应用程序基本由两个重要部分组成：<strong>一个是Web浏览器交互的HTTP服务器，另一个是HTTP服务器交互的R会话</strong>。</p>
+<p>下面我们写一个最小的shiny应用程序，写一个R脚本定义它的用户界面和服务器逻辑，用户界面是一个<code>boostrapPage</code>，它包含一个<code>numericInput</code>用于接收一个整数表示样本容量，一个<code>textOutput</code>用于返回随机样本的均值。服务器背后的逻辑是根据输入<code>input</code>的样本容量<code>n</code>生成随机数，计算随机样本的均值，并将结果放在<code>output</code>中。</p>
+<pre class="r"><code>library(shiny)
+
+ui = bootstrapPage(
+    numericInput(&quot;n&quot;, label = &quot;Sample size&quot;, value = 10, min = 10, max = 100),
+    textOutput(&quot;mean&quot;)
+)
+
+server = function(input, output){
+    output$mean = renderText(mean(rnorm(input$n)))
+}
+
+app = shinyApp(ui, server)
+runApp(app)</code></pre>
+<div class="figure">
+<img src="/figures/easy_shiny.png" />
+
+</div>
+<p>尽管这个例子很简单，但它演示了shiny应用程序的基本组件。</p>
+<p>下面我们看一个复杂有用的例子：可视化几何布朗运动的许多路径，几何布朗运动常用于股票价格建模，运动的结果取决于初始值、预期增长率、波动率、持续时间和周期数。除了设定T=1外，我们允许用户修改其他所有参数。</p>
+<p>我们可以根据想展示给用户的参数来定义shiny应用程序的用户界面，shiny提供了丰富的输入控件：</p>
+<pre class="r"><code>shiny_vars = ls(getNamespace(&quot;shiny&quot;))
+shiny_vars[grep(&quot;Input$&quot;, shiny_vars)]
+#&gt;  [1] &quot;checkboxGroupInput&quot;            &quot;checkboxInput&quot;                
+#&gt;  [3] &quot;dateInput&quot;                     &quot;dateRangeInput&quot;               
+#&gt;  [5] &quot;fileInput&quot;                     &quot;numericInput&quot;                 
+#&gt;  [7] &quot;passwordInput&quot;                 &quot;restoreInput&quot;                 
+#&gt;  [9] &quot;selectInput&quot;                   &quot;selectizeInput&quot;               
+#&gt; [11] &quot;serializerFileInput&quot;           &quot;sliderInput&quot;                  
+#&gt; [13] &quot;snapshotPreprocessInput&quot;       &quot;snapshotPreprocessorFileInput&quot;
+#&gt; [15] &quot;textAreaInput&quot;                 &quot;textInput&quot;                    
+#&gt; [17] &quot;updateCheckboxGroupInput&quot;      &quot;updateCheckboxInput&quot;          
+#&gt; [19] &quot;updateDateInput&quot;               &quot;updateDateRangeInput&quot;         
+#&gt; [21] &quot;updateNumericInput&quot;            &quot;updateSelectInput&quot;            
+#&gt; [23] &quot;updateSelectizeInput&quot;          &quot;updateSliderInput&quot;            
+#&gt; [25] &quot;updateTextAreaInput&quot;           &quot;updateTextInput&quot;</code></pre>
+<p>另外我们允许用户指定随机种子数来确保相同的种子生成相同的路径。</p>
+<p>下面是shiny提供的输出控件：</p>
+<pre class="r"><code>shiny_vars[grep(&quot;Output$&quot;, shiny_vars)]
+#&gt;  [1] &quot;cancelOutput&quot;             &quot;dataTableOutput&quot;         
+#&gt;  [3] &quot;htmlOutput&quot;               &quot;imageOutput&quot;             
+#&gt;  [5] &quot;missingOutput&quot;            &quot;plotOutput&quot;              
+#&gt;  [7] &quot;snapshotPreprocessOutput&quot; &quot;tableOutput&quot;             
+#&gt;  [9] &quot;textOutput&quot;               &quot;uiOutput&quot;                
+#&gt; [11] &quot;verbatimTextOutput&quot;</code></pre>
+<p>下面写代码：</p>
+<pre class="r"><code>library(shiny)
+
+ui = fluidPage(
+    titlePanel(&quot;Random walk&quot;),
+    sidebarLayout(
+        sidebarPanel(
+            numericInput(&quot;seed&quot;, &quot;Random seed&quot;, 123),
+            sliderInput(&quot;paths&quot;, &quot;Paths&quot;, 1, 100, 1),
+            sliderInput(&quot;start&quot;, &quot;Starting value&quot;, 1, 10, 1, 1),
+            sliderInput(&quot;r&quot;, &quot;Expected return&quot;, -0.1, 0.1, 0, 0.001),
+            sliderInput(&quot;sigma&quot;, &quot;Sigma&quot;, 0.001, 1, 0.01, 0.001),
+            sliderInput(&quot;periods&quot;, &quot;Periods&quot;, 10, 1000, 200, 10)
+        ),
+        mainPanel(
+            plotOutput(&quot;plot&quot;, width = &quot;100%&quot;, height = &quot;600px&quot;)
+        )
+    )
+)</code></pre>
+<p>接下来我们实现服务器逻辑，首先设置随机数，然后迭代调用<code>sde::GBM</code>，这个包要先安装。</p>
+<p>GMB生成一条路径，<code>sapply()</code>将所有生成的路径组合成一个矩阵，矩阵的每一列代表一条路径，然后使用<code>matplot()</code>画图。</p>
+<p>无论是文本，图形还是表格，计算都是在<code>render*</code>函数中完成，目前有下面一些：</p>
+<pre class="r"><code>shiny_vars[grep(&quot;^render&quot;, shiny_vars)]
+#&gt; [1] &quot;renderDataTable&quot; &quot;renderImage&quot;     &quot;renderPage&quot;      &quot;renderPlot&quot;     
+#&gt; [5] &quot;renderPrint&quot;     &quot;renderReactLog&quot;  &quot;renderTable&quot;     &quot;renderText&quot;     
+#&gt; [9] &quot;renderUI&quot;</code></pre>
+<p>这个例子我们只需要调用<code>renderPlot()</code>。</p>
+<pre class="r"><code>server = function(input, output){
+    output$plot = renderPlot({
+        set.seed(input$seed)
+        mat = sapply(seq_len(input$paths), function(i){
+            sde::GBM(input$start,
+                     input$r,
+                     input$sigma,
+                     1,
+                     input$periods)
+        })
+        
+        matplot(mat, type = &quot;l&quot;, lty = 1, main = &quot;Geometric Brownian motions&quot;)
+    })
+}</code></pre>
+<p>然后创建并运行<code>shiny</code>：</p>
+<pre class="r"><code>app = shinyApp(ui, server)
+runApp(app)</code></pre>
+<div class="figure">
+<img src="/figures/random_walk.png" />
+
+</div>
+</div>
