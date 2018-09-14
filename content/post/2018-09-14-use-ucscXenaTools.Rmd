@@ -1,0 +1,131 @@
+---
+title: "UCSC TCGA数据的下载"
+author: 王诗翔
+date: 2018-09-14
+slug: "ucscxenatools-usage"
+categories: 
+    - R
+tags:
+    - UCSCXenaTools
+    - package
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(collapse = TRUE, dev = "png", comment = "#>")
+#Sys.setlocale('LC_ALL','C') # Embed this directly in the Rmarkdown script that contains the Chinese character comment
+options(digits=3)
+options(max.print=200)
+```
+
+我在简书的文章[【r<-包|数据集|公开数据库】UCSCXenaTools包用法介绍——搜索与下载TCGA、GDC、ICGC等公开数据库数据集](https://www.jianshu.com/p/47cb99bf5a07)讲解了使用UCSCXenaTools包进行UCSC Xena数据下载的一般方法。在使用上，还是需要一定R编程基础的人才能用起来，因为想要灵活的选择数据集需要一定的正则表达式基础，除此之外，还需要理解Xena上你要的数据集它在Xena服务器上保存的规律。
+
+写这个包的初衷就是不想频繁的点击浏览器下载，而且能够批量下载和保存。既然写了包我又想让包的使用更简单一些，这样只要有R，装好包就能用起来。能不能更简单一点呢？我思考了很久，想要偷懒的人勤奋地码起了代码。
+
+因为自己常用TCGA数据，大部分人也是如此，所以我最近首先尝试解决这个问题。Xena服务器上存储的文件虽然有一些规律，但在取名上非常混乱，我不得不寻找规律利用正则表达式进行匹配和解析并调试确保输入输出正确，并扔掉了。如果你想要看看，不妨[点击](https://github.com/ShixiangWang/UCSCXenaTools/blob/master/R/simplify.R)并将网页拉到最后。
+
+我根据Xena提供的文件名将数据解析为主要两种类型的组合：**数据类型**和**文件类型**，前者标志某个文件是拷贝数数据、突变数据还是基因表达数据等等，后者更为具体，比如基因高通量测序表达数据Xena分为数据集内标准化，Pancan标准化和百分位标准化（用于和其他非TCGA数据比较）。
+
+在此基础上，我写了`downloadTCGA`函数，只要你知道想要下载数据的数据类型和文件类型，你就能轻松下载（对于新手还是有难度哈）。
+
+下面简单看看，我们先安装下包并导入：
+
+```{r, eval=FALSE}
+install.packages("UCSCXenaTools", dependencies = TRUE)
+```
+
+
+```{r}
+
+library(UCSCXenaTools)
+```
+
+查看下`downloadTCGA`参数：
+
+```{r}
+args(downloadTCGA)
+```
+
+主要参数就4个，指定癌症类型，指定数据类型，指定文件类型以及下载到的本地路径。如果对参数不了解，可以使用`help`函数或者打`??downloadTCGA`，希望我写的英文你能看懂。
+
+因为第一次用，我们可能不清楚这个包怎么指定这些参数，使用`availTCGA`可以帮助你：
+
+```{r}
+availTCGA()
+```
+
+这些数据都和Xena对应，不熟悉可以上（https://xenabrowser.net/datapages/）随便找个TCGA数据集点点看看。
+
+注意下Xena提供了一些组合肿瘤类型，比如COADREAD，还有PANCAN，就是TCGA所有的都包含了。另外不是所有的项目都包含了上面显示的数据类型和文件类型，如果你不知道有没有，可以使用目前提供的shiny搜索下：
+
+```{r, eval=FALSE}
+XenaShiny()
+```
+
+Shiny我还刚学习，很多不懂，以后再搞。
+
+有一些知识基础后我们现在可以下数据了，比如下个`OV`的临床数据：
+
+```{r}
+downloadTCGA(project = "OV", data_type = "Phenotype", file_type = "Clinical Information", destdir = tempdir())
+```
+
+因为下载的文件名包含了`/`符号，我全部替换成了`__`。
+
+下载基因表达试试，选择LUAD和LUSC的泛癌标准化数据：
+
+```{r, eval=FALSE}
+luad_lusc = downloadTCGA(project = c("LUAD", "LUSC"), data_type = "Gene Expression RNASeq", 
+                         file_type = "IlluminaHiSeq RNASeqV2 pancan normalized", force = TRUE)
+```
+
+记得UCSCXenaTools提供的下载都是可以把结果返回到一个符号中的，通过它你直接可以将数据载入R，像下面这样：
+
+```{r, eval=FALSE}
+XenaPrepare(luad_lusc)
+```
+
+上面简单是简单些了，但还需要记东西，所以我想更简单一点，所以又有了下面的函数：
+
+```{r}
+args(getTCGAdata)
+```
+
+该函数提供的下载数据没有前一个函数多，一些不常用的数据我没有加入进来，这个函数的创建就是用来简单地下载常用的组学数据，你只需要设定好`project`这个很熟悉的选项，其他基本上是TRUE和FALSE的问题。
+
+记得函数默认下载临床信息：
+
+```{r}
+getTCGAdata(project = 'OV', download = TRUE)
+```
+
+因为刚下载好了，它不下载了，我们可以强制：
+
+```{r}
+getTCGAdata(project = 'OV', download = TRUE, forceDownload = TRUE)
+```
+
+默认`download = FALSE`，所以�不会自动下载，这是我考虑到有可能出现怕下错的情况，我们可以先看看：
+
+```{r}
+getTCGAdata(project = 'OV')
+```
+
+你看它只包含一个数据集，而且跟<https://xenabrowser.net/datapages/?dataset=TCGA.OV.sampleMap%2FOV_clinicalMatrix&host=https%3A%2F%2Ftcga.xenahubs.net&removeHub=https%3A%2F%2Fxena.treehouse.gi.ucsc.edu>显示的一样（除了.gz）结尾。
+
+导入也是很简单的事情，跟前面一样，我们把下载和导入连起来就两句话：
+
+```{r}
+ov = getTCGAdata(project = 'OV', download = TRUE, forceDownload = TRUE)
+ov_clinical = XenaPrepare(ov)
+```
+
+查看数据：
+
+```{r}
+head(ov_clinical)
+```
+
+其他功能慢慢加~
+
+有问题不妨看看文档<https://shixiangwang.github.io/UCSCXenaTools/>，应该不难。

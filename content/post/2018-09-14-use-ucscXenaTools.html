@@ -1,0 +1,257 @@
+---
+title: "UCSC TCGA数据的下载"
+author: 王诗翔
+date: 2018-09-14
+slug: "ucscxenatools-usage"
+categories: 
+    - R
+tags:
+    - UCSCXenaTools
+    - package
+---
+
+
+
+<p>我在简书的文章<a href="https://www.jianshu.com/p/47cb99bf5a07">【r&lt;-包|数据集|公开数据库】UCSCXenaTools包用法介绍——搜索与下载TCGA、GDC、ICGC等公开数据库数据集</a>讲解了使用UCSCXenaTools包进行UCSC Xena数据下载的一般方法。在使用上，还是需要一定R编程基础的人才能用起来，因为想要灵活的选择数据集需要一定的正则表达式基础，除此之外，还需要理解Xena上你要的数据集它在Xena服务器上保存的规律。</p>
+<p>写这个包的初衷就是不想频繁的点击浏览器下载，而且能够批量下载和保存。既然写了包我又想让包的使用更简单一些，这样只要有R，装好包就能用起来。能不能更简单一点呢？我思考了很久，想要偷懒的人勤奋地码起了代码。</p>
+<p>因为自己常用TCGA数据，大部分人也是如此，所以我最近首先尝试解决这个问题。Xena服务器上存储的文件虽然有一些规律，但在取名上非常混乱，我不得不寻找规律利用正则表达式进行匹配和解析并调试确保输入输出正确，并扔掉了。如果你想要看看，不妨<a href="https://github.com/ShixiangWang/UCSCXenaTools/blob/master/R/simplify.R">点击</a>并将网页拉到最后。</p>
+<p>我根据Xena提供的文件名将数据解析为主要两种类型的组合：<strong>数据类型</strong>和<strong>文件类型</strong>，前者标志某个文件是拷贝数数据、突变数据还是基因表达数据等等，后者更为具体，比如基因高通量测序表达数据Xena分为数据集内标准化，Pancan标准化和百分位标准化（用于和其他非TCGA数据比较）。</p>
+<p>在此基础上，我写了<code>downloadTCGA</code>函数，只要你知道想要下载数据的数据类型和文件类型，你就能轻松下载（对于新手还是有难度哈）。</p>
+<p>下面简单看看，我们先安装下包并导入：</p>
+<pre class="r"><code>install.packages(&quot;UCSCXenaTools&quot;, dependencies = TRUE)</code></pre>
+<pre class="r"><code>
+library(UCSCXenaTools)</code></pre>
+<p>查看下<code>downloadTCGA</code>参数：</p>
+<pre class="r"><code>args(downloadTCGA)
+#&gt; function (project = NULL, data_type = NULL, file_type = NULL, 
+#&gt;     destdir = tempdir(), force = FALSE, ...) 
+#&gt; NULL</code></pre>
+<p>主要参数就4个，指定癌症类型，指定数据类型，指定文件类型以及下载到的本地路径。如果对参数不了解，可以使用<code>help</code>函数或者打<code>??downloadTCGA</code>，希望我写的英文你能看懂。</p>
+<p>因为第一次用，我们可能不清楚这个包怎么指定这些参数，使用<code>availTCGA</code>可以帮助你：</p>
+<pre class="r"><code>availTCGA()
+#&gt; Note not all projects have listed data types and file types, you can use showTCGA function to check if exist
+#&gt; $ProjectID
+#&gt;  [1] &quot;LAML&quot;     &quot;ACC&quot;      &quot;CHOL&quot;     &quot;BLCA&quot;     &quot;BRCA&quot;     &quot;CESC&quot;    
+#&gt;  [7] &quot;COADREAD&quot; &quot;COAD&quot;     &quot;UCEC&quot;     &quot;ESCA&quot;     &quot;FPPP&quot;     &quot;GBM&quot;     
+#&gt; [13] &quot;HNSC&quot;     &quot;KICH&quot;     &quot;KIRC&quot;     &quot;KIRP&quot;     &quot;DLBC&quot;     &quot;LIHC&quot;    
+#&gt; [19] &quot;LGG&quot;      &quot;GBMLGG&quot;   &quot;LUAD&quot;     &quot;LUNG&quot;     &quot;LUSC&quot;     &quot;SKCM&quot;    
+#&gt; [25] &quot;MESO&quot;     &quot;UVM&quot;      &quot;OV&quot;       &quot;PANCAN&quot;   &quot;PAAD&quot;     &quot;PCPG&quot;    
+#&gt; [31] &quot;PRAD&quot;     &quot;READ&quot;     &quot;SARC&quot;     &quot;STAD&quot;     &quot;TGCT&quot;     &quot;THYM&quot;    
+#&gt; [37] &quot;THCA&quot;     &quot;UCS&quot;     
+#&gt; 
+#&gt; $DataType
+#&gt;  [1] &quot;DNA Methylation&quot;                       
+#&gt;  [2] &quot;Gene Level Copy Number&quot;                
+#&gt;  [3] &quot;Somatic Mutation&quot;                      
+#&gt;  [4] &quot;Gene Expression RNASeq&quot;                
+#&gt;  [5] &quot;miRNA Mature Strand Expression RNASeq&quot; 
+#&gt;  [6] &quot;Gene Somatic Non-silent Mutation&quot;      
+#&gt;  [7] &quot;Copy Number Segments&quot;                  
+#&gt;  [8] &quot;Exon Expression RNASeq&quot;                
+#&gt;  [9] &quot;Phenotype&quot;                             
+#&gt; [10] &quot;PARADIGM Pathway Activity&quot;             
+#&gt; [11] &quot;Protein Expression RPPA&quot;               
+#&gt; [12] &quot;Transcription Factor Regulatory Impact&quot;
+#&gt; [13] &quot;Gene Expression Array&quot;                 
+#&gt; [14] &quot;Signatures&quot;                            
+#&gt; [15] &quot;iCluster&quot;                              
+#&gt; 
+#&gt; $FileType
+#&gt;  [1] &quot;Methylation27K&quot;                            
+#&gt;  [2] &quot;Methylation450K&quot;                           
+#&gt;  [3] &quot;Gistic2&quot;                                   
+#&gt;  [4] &quot;wustl hiseq automated&quot;                     
+#&gt;  [5] &quot;IlluminaGA RNASeq&quot;                         
+#&gt;  [6] &quot;IlluminaHiSeq RNASeqV2 in percentile rank&quot; 
+#&gt;  [7] &quot;IlluminaHiSeq RNASeqV2 pancan normalized&quot;  
+#&gt;  [8] &quot;IlluminaHiSeq RNASeqV2&quot;                    
+#&gt;  [9] &quot;After remove germline cnv&quot;                 
+#&gt; [10] &quot;PANCAN AWG analyzed&quot;                       
+#&gt; [11] &quot;Clinical Information&quot;                      
+#&gt; [12] &quot;wustl automated&quot;                           
+#&gt; [13] &quot;Gistic2 thresholded&quot;                       
+#&gt; [14] &quot;Before remove germline cnv&quot;                
+#&gt; [15] &quot;Use only RNASeq&quot;                           
+#&gt; [16] &quot;Use RNASeq plus Copy Number&quot;               
+#&gt; [17] &quot;bcm automated&quot;                             
+#&gt; [18] &quot;IlluminaHiSeq RNASeq&quot;                      
+#&gt; [19] &quot;bcm curated&quot;                               
+#&gt; [20] &quot;broad curated&quot;                             
+#&gt; [21] &quot;RPPA&quot;                                      
+#&gt; [22] &quot;bsgsc automated&quot;                           
+#&gt; [23] &quot;broad automated&quot;                           
+#&gt; [24] &quot;bcgsc automated&quot;                           
+#&gt; [25] &quot;ucsc automated&quot;                            
+#&gt; [26] &quot;RABIT Use IlluminaHiSeq RNASeqV2&quot;          
+#&gt; [27] &quot;RABIT Use IlluminaHiSeq RNASeq&quot;            
+#&gt; [28] &quot;RPPA normalized by RBN&quot;                    
+#&gt; [29] &quot;RABIT Use Agilent 244K Microarray&quot;         
+#&gt; [30] &quot;wustl curated&quot;                             
+#&gt; [31] &quot;Use Microarray plus Copy Number&quot;           
+#&gt; [32] &quot;Use only Microarray&quot;                       
+#&gt; [33] &quot;Agilent 244K Microarray&quot;                   
+#&gt; [34] &quot;IlluminaGA RNASeqV2&quot;                       
+#&gt; [35] &quot;bcm SOLiD&quot;                                 
+#&gt; [36] &quot;RABIT Use IlluminaGA RNASeqV2&quot;             
+#&gt; [37] &quot;RABIT Use IlluminaGA RNASeq&quot;               
+#&gt; [38] &quot;RABIT Use Affymetrix U133A Microarray&quot;     
+#&gt; [39] &quot;Affymetrix U133A Microarray&quot;               
+#&gt; [40] &quot;MethylMix&quot;                                 
+#&gt; [41] &quot;bcm SOLiD curated&quot;                         
+#&gt; [42] &quot;Gene Expression Subtype&quot;                   
+#&gt; [43] &quot;Platform-corrected PANCAN12 dataset&quot;       
+#&gt; [44] &quot;Batch effects normalized&quot;                  
+#&gt; [45] &quot;MC3 Public Version&quot;                        
+#&gt; [46] &quot;TCGA Sample Type and Primary Disease&quot;      
+#&gt; [47] &quot;RPPA pancan normalized&quot;                    
+#&gt; [48] &quot;Tumor copy number&quot;                         
+#&gt; [49] &quot;Genome-wide DNA Damage Footprint HRD Score&quot;
+#&gt; [50] &quot;TCGA Molecular Subtype&quot;                    
+#&gt; [51] &quot;iCluster cluster assignments&quot;              
+#&gt; [52] &quot;iCluster latent variables&quot;                 
+#&gt; [53] &quot;RNA based StemnessScore&quot;                   
+#&gt; [54] &quot;DNA methylation based StemnessScore&quot;       
+#&gt; [55] &quot;Pancan Gene Programs&quot;                      
+#&gt; [56] &quot;Immune Model Based Subtype&quot;                
+#&gt; [57] &quot;Immune Signature Scores&quot;</code></pre>
+<p>这些数据都和Xena对应，不熟悉可以上（<a href="https://xenabrowser.net/datapages/）随便找个TCGA数据集点点看看" class="uri">https://xenabrowser.net/datapages/）随便找个TCGA数据集点点看看</a>。</p>
+<p>注意下Xena提供了一些组合肿瘤类型，比如COADREAD，还有PANCAN，就是TCGA所有的都包含了。另外不是所有的项目都包含了上面显示的数据类型和文件类型，如果你不知道有没有，可以使用目前提供的shiny搜索下：</p>
+<pre class="r"><code>XenaShiny()</code></pre>
+<p>Shiny我还刚学习，很多不懂，以后再搞。</p>
+<p>有一些知识基础后我们现在可以下数据了，比如下个<code>OV</code>的临床数据：</p>
+<pre class="r"><code>downloadTCGA(project = &quot;OV&quot;, data_type = &quot;Phenotype&quot;, file_type = &quot;Clinical Information&quot;, destdir = tempdir())
+#&gt; We will download files to directory /var/folders/mx/rfkl27z90c96wbmn3_kjk8c80000gn/T//RtmpCgzBHS.
+#&gt; Downloading TCGA.OV.sampleMap__OV_clinicalMatrix.gz
+#&gt; Note fileNames transfromed from datasets name and / chracter all changed to __ character.</code></pre>
+<p>因为下载的文件名包含了<code>/</code>符号，我全部替换成了<code>__</code>。</p>
+<p>下载基因表达试试，选择LUAD和LUSC的泛癌标准化数据：</p>
+<pre class="r"><code>luad_lusc = downloadTCGA(project = c(&quot;LUAD&quot;, &quot;LUSC&quot;), data_type = &quot;Gene Expression RNASeq&quot;, 
+                         file_type = &quot;IlluminaHiSeq RNASeqV2 pancan normalized&quot;, force = TRUE)</code></pre>
+<p>记得UCSCXenaTools提供的下载都是可以把结果返回到一个符号中的，通过它你直接可以将数据载入R，像下面这样：</p>
+<pre class="r"><code>XenaPrepare(luad_lusc)</code></pre>
+<p>上面简单是简单些了，但还需要记东西，所以我想更简单一点，所以又有了下面的函数：</p>
+<pre class="r"><code>args(getTCGAdata)
+#&gt; function (project = NULL, clinical = TRUE, download = FALSE, 
+#&gt;     forceDownload = FALSE, destdir = tempdir(), mRNASeq = FALSE, 
+#&gt;     mRNAArray = FALSE, mRNASeqType = &quot;normalized&quot;, miRNASeq = FALSE, 
+#&gt;     exonRNASeq = FALSE, RPPAArray = FALSE, ReplicateBaseNormalization = FALSE, 
+#&gt;     Methylation = FALSE, MethylationType = c(&quot;27K&quot;, &quot;450K&quot;), 
+#&gt;     GeneMutation = FALSE, SomaticMutation = FALSE, GisticCopyNumber = FALSE, 
+#&gt;     Gistic2Threshold = TRUE, CopyNumberSegment = FALSE, RemoveGermlineCNV = TRUE, 
+#&gt;     ...) 
+#&gt; NULL</code></pre>
+<p>该函数提供的下载数据没有前一个函数多，一些不常用的数据我没有加入进来，这个函数的创建就是用来简单地下载常用的组学数据，你只需要设定好<code>project</code>这个很熟悉的选项，其他基本上是TRUE和FALSE的问题。</p>
+<p>记得函数默认下载临床信息：</p>
+<pre class="r"><code>getTCGAdata(project = &#39;OV&#39;, download = TRUE)
+#&gt; We will download files to directory /var/folders/mx/rfkl27z90c96wbmn3_kjk8c80000gn/T//RtmpCgzBHS.
+#&gt; /var/folders/mx/rfkl27z90c96wbmn3_kjk8c80000gn/T//RtmpCgzBHS/TCGA.OV.sampleMap__OV_clinicalMatrix.gz, the file has been download!
+#&gt; Note fileNames transfromed from datasets name and / chracter all changed to __ character.</code></pre>
+<p>因为刚下载好了，它不下载了，我们可以强制：</p>
+<pre class="r"><code>getTCGAdata(project = &#39;OV&#39;, download = TRUE, forceDownload = TRUE)
+#&gt; We will download files to directory /var/folders/mx/rfkl27z90c96wbmn3_kjk8c80000gn/T//RtmpCgzBHS.
+#&gt; Downloading TCGA.OV.sampleMap__OV_clinicalMatrix.gz
+#&gt; Note fileNames transfromed from datasets name and / chracter all changed to __ character.</code></pre>
+<p>默认<code>download = FALSE</code>，所以�不会自动下载，这是我考虑到有可能出现怕下错的情况，我们可以先看看：</p>
+<pre class="r"><code>getTCGAdata(project = &#39;OV&#39;)
+#&gt; $Xena
+#&gt; class: XenaHub 
+#&gt; hosts():
+#&gt;   https://tcga.xenahubs.net
+#&gt; cohorts() (1 total):
+#&gt;   TCGA Ovarian Cancer (OV)
+#&gt; datasets() (1 total):
+#&gt;   TCGA.OV.sampleMap/OV_clinicalMatrix
+#&gt; 
+#&gt; $DataInfo
+#&gt;                   XenaHosts XenaHostNames              XenaCohorts
+#&gt; 1 https://tcga.xenahubs.net          TCGA TCGA Ovarian Cancer (OV)
+#&gt;                          XenaDatasets ProjectID  DataType
+#&gt; 1 TCGA.OV.sampleMap/OV_clinicalMatrix        OV Phenotype
+#&gt;               FileType
+#&gt; 1 Clinical Information</code></pre>
+<p>你看它只包含一个数据集，而且跟<a href="https://xenabrowser.net/datapages/?dataset=TCGA.OV.sampleMap%2FOV_clinicalMatrix&amp;host=https%3A%2F%2Ftcga.xenahubs.net&amp;removeHub=https%3A%2F%2Fxena.treehouse.gi.ucsc.edu">https://xenabrowser.net/datapages/?dataset=TCGA.OV.sampleMap%2FOV_clinicalMatrix&amp;host=https%3A%2F%2Ftcga.xenahubs.net&amp;removeHub=https%3A%2F%2Fxena.treehouse.gi.ucsc.edu</a>显示的一样（除了.gz）结尾。</p>
+<p>导入也是很简单的事情，跟前面一样，我们把下载和导入连起来就两句话：</p>
+<pre class="r"><code>ov = getTCGAdata(project = &#39;OV&#39;, download = TRUE, forceDownload = TRUE)
+#&gt; We will download files to directory /var/folders/mx/rfkl27z90c96wbmn3_kjk8c80000gn/T//RtmpCgzBHS.
+#&gt; Downloading TCGA.OV.sampleMap__OV_clinicalMatrix.gz
+#&gt; Note fileNames transfromed from datasets name and / chracter all changed to __ character.
+ov_clinical = XenaPrepare(ov)</code></pre>
+<p>查看数据：</p>
+<pre class="r"><code>head(ov_clinical)
+#&gt; # A tibble: 6 x 111
+#&gt;   sampleID `_EVENT` `_INTEGRATION` OS.time    OS OS.unit `_PANCAN_CNA_PA…
+#&gt;   &lt;chr&gt;       &lt;int&gt; &lt;chr&gt;            &lt;int&gt; &lt;int&gt; &lt;chr&gt;   &lt;chr&gt;           
+#&gt; 1 TCGA-01…       NA TCGA-01-0628-…      NA    NA days    &lt;NA&gt;            
+#&gt; 2 TCGA-01…       NA TCGA-01-0629-…      NA    NA days    &lt;NA&gt;            
+#&gt; 3 TCGA-01…       NA TCGA-01-0630-…      NA    NA days    &lt;NA&gt;            
+#&gt; 4 TCGA-01…       NA TCGA-01-0631-…      NA    NA days    &lt;NA&gt;            
+#&gt; 5 TCGA-01…       NA TCGA-01-0633-…      NA    NA days    &lt;NA&gt;            
+#&gt; 6 TCGA-01…       NA TCGA-01-0636-…      NA    NA days    &lt;NA&gt;            
+#&gt; # ... with 104 more variables: `_PANCAN_Cluster_Cluster_PANCAN` &lt;chr&gt;,
+#&gt; #   `_PANCAN_DNAMethyl_PANCAN` &lt;chr&gt;, `_PANCAN_RPPA_PANCAN_K8` &lt;chr&gt;,
+#&gt; #   `_PANCAN_UNC_RNAseq_PANCAN_K16` &lt;chr&gt;, `_PANCAN_miRNA_PANCAN` &lt;chr&gt;,
+#&gt; #   `_PANCAN_mirna_OV` &lt;chr&gt;, `_PANCAN_mutation_PANCAN` &lt;chr&gt;,
+#&gt; #   `_PATIENT` &lt;chr&gt;, RFS.time &lt;int&gt;, RFS &lt;int&gt;, RFS.unit &lt;chr&gt;,
+#&gt; #   `_TIME_TO_EVENT` &lt;int&gt;, `_TIME_TO_EVENT_UNIT` &lt;chr&gt;, `_cohort` &lt;chr&gt;,
+#&gt; #   `_primary_disease` &lt;chr&gt;, `_primary_site` &lt;chr&gt;,
+#&gt; #   additional_pharmaceutical_therapy &lt;chr&gt;,
+#&gt; #   additional_radiation_therapy &lt;chr&gt;,
+#&gt; #   age_at_initial_pathologic_diagnosis &lt;int&gt;,
+#&gt; #   anatomic_neoplasm_subdivision &lt;chr&gt;, bcr_followup_barcode &lt;chr&gt;,
+#&gt; #   bcr_patient_barcode &lt;chr&gt;, bcr_sample_barcode &lt;chr&gt;,
+#&gt; #   clinical_stage &lt;chr&gt;, days_to_birth &lt;int&gt;, days_to_collection &lt;int&gt;,
+#&gt; #   days_to_death &lt;int&gt;, days_to_initial_pathologic_diagnosis &lt;int&gt;,
+#&gt; #   days_to_last_followup &lt;int&gt;,
+#&gt; #   days_to_new_tumor_event_additional_surgery_procedure &lt;int&gt;,
+#&gt; #   days_to_new_tumor_event_after_initial_treatment &lt;int&gt;,
+#&gt; #   eastern_cancer_oncology_group &lt;int&gt;,
+#&gt; #   followup_case_report_form_submission_reason &lt;chr&gt;,
+#&gt; #   followup_treatment_success &lt;chr&gt;, form_completion_date &lt;chr&gt;,
+#&gt; #   gender &lt;chr&gt;, histological_type &lt;chr&gt;,
+#&gt; #   history_of_neoadjuvant_treatment &lt;chr&gt;, icd_10 &lt;chr&gt;,
+#&gt; #   icd_o_3_histology &lt;chr&gt;, icd_o_3_site &lt;chr&gt;,
+#&gt; #   informed_consent_verified &lt;chr&gt;,
+#&gt; #   initial_pathologic_diagnosis_method &lt;chr&gt;, initial_weight &lt;int&gt;,
+#&gt; #   intermediate_dimension &lt;dbl&gt;, is_ffpe &lt;chr&gt;,
+#&gt; #   karnofsky_performance_score &lt;int&gt;, longest_dimension &lt;dbl&gt;,
+#&gt; #   lost_follow_up &lt;chr&gt;, lymphatic_invasion &lt;chr&gt;,
+#&gt; #   neoplasm_histologic_grade &lt;chr&gt;, new_neoplasm_event_type &lt;chr&gt;,
+#&gt; #   new_tumor_event_additional_surgery_procedure &lt;chr&gt;,
+#&gt; #   new_tumor_event_after_initial_treatment &lt;chr&gt;, oct_embedded &lt;chr&gt;,
+#&gt; #   other_dx &lt;chr&gt;, pathology_report_file_name &lt;chr&gt;, patient_id &lt;chr&gt;,
+#&gt; #   performance_status_scale_timing &lt;chr&gt;,
+#&gt; #   person_neoplasm_cancer_status &lt;chr&gt;, postoperative_rx_tx &lt;chr&gt;,
+#&gt; #   primary_therapy_outcome_success &lt;chr&gt;,
+#&gt; #   progression_determined_by &lt;chr&gt;, radiation_therapy &lt;chr&gt;,
+#&gt; #   residual_tumor &lt;chr&gt;, sample_type &lt;chr&gt;, sample_type_id &lt;chr&gt;,
+#&gt; #   shortest_dimension &lt;dbl&gt;,
+#&gt; #   tissue_prospective_collection_indicator &lt;chr&gt;,
+#&gt; #   tissue_retrospective_collection_indicator &lt;chr&gt;,
+#&gt; #   tissue_source_site &lt;chr&gt;, tumor_residual_disease &lt;chr&gt;,
+#&gt; #   tumor_tissue_site &lt;chr&gt;, venous_invasion &lt;chr&gt;, vial_number &lt;chr&gt;,
+#&gt; #   vital_status &lt;chr&gt;, year_of_initial_pathologic_diagnosis &lt;int&gt;,
+#&gt; #   `_GENOMIC_ID_TCGA_OV_PDMRNAseq` &lt;chr&gt;,
+#&gt; #   `_GENOMIC_ID_data/public/TCGA/OV/miRNA_HiSeq_gene` &lt;chr&gt;,
+#&gt; #   `_GENOMIC_ID_TCGA_OV_mutation_bcm_solid_gene` &lt;chr&gt;,
+#&gt; #   `_GENOMIC_ID_TCGA_OV_exp_u133a` &lt;chr&gt;,
+#&gt; #   `_GENOMIC_ID_TCGA_OV_hMethyl450` &lt;chr&gt;,
+#&gt; #   `_GENOMIC_ID_TCGA_OV_miRNA_HiSeq` &lt;chr&gt;,
+#&gt; #   `_GENOMIC_ID_TCGA_OV_mutation_curated_bcm_solid_gene` &lt;chr&gt;,
+#&gt; #   `_GENOMIC_ID_TCGA_OV_hMethyl27` &lt;chr&gt;,
+#&gt; #   `_GENOMIC_ID_TCGA_OV_mutation_wustl_hiseq_gene` &lt;chr&gt;,
+#&gt; #   `_GENOMIC_ID_TCGA_OV_RPPA_RBN` &lt;chr&gt;,
+#&gt; #   `_GENOMIC_ID_TCGA_OV_mutation_wustl_gene` &lt;chr&gt;,
+#&gt; #   `_GENOMIC_ID_TCGA_OV_exp_HiSeqV2_percentile` &lt;chr&gt;,
+#&gt; #   `_GENOMIC_ID_TCGA_OV_gistic2thd` &lt;chr&gt;,
+#&gt; #   `_GENOMIC_ID_TCGA_OV_PDMarray` &lt;chr&gt;,
+#&gt; #   `_GENOMIC_ID_TCGA_OV_RPPA` &lt;chr&gt;,
+#&gt; #   `_GENOMIC_ID_TCGA_OV_exp_HiSeq` &lt;chr&gt;,
+#&gt; #   `_GENOMIC_ID_TCGA_OV_gistic2` &lt;chr&gt;,
+#&gt; #   `_GENOMIC_ID_TCGA_OV_exp_HiSeqV2_PANCAN` &lt;chr&gt;,
+#&gt; #   `_GENOMIC_ID_TCGA_OV_exp_HiSeq_exon` &lt;chr&gt;,
+#&gt; #   `_GENOMIC_ID_TCGA_OV_exp_HiSeqV2` &lt;chr&gt;,
+#&gt; #   `_GENOMIC_ID_TCGA_OV_mutation_broad_gene` &lt;chr&gt;,
+#&gt; #   `_GENOMIC_ID_TCGA_OV_PDMarrayCNV` &lt;chr&gt;,
+#&gt; #   `_GENOMIC_ID_TCGA_OV_PDMRNAseqCNV` &lt;chr&gt;, …</code></pre>
+<p>其他功能慢慢加~</p>
+<p>有问题不妨看看文档<a href="https://shixiangwang.github.io/UCSCXenaTools/" class="uri">https://shixiangwang.github.io/UCSCXenaTools/</a>，应该不难。</p>
