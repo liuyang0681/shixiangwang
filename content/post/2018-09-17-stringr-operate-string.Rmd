@@ -403,9 +403,102 @@ tibble(sentences = sentences) %>%
 
 ### 替换匹配内容
 
+`str_replace()`和`str_replace_all()`函数可以使用新的字符串替换匹配的内容。最简单的就是使用固定的字符串进行替换：
+
+```{r}
+x = c("apple", "pear", "banana")
+str_replace(x, "[aeiou]", "-")
+str_replace_all(x, "[aeiou]", "-")
+```
+
+**通过一个命令向量我们可以同时进行多个替换**：
+
+```{r}
+x = c("1 house", "2 cars", "3 people")
+str_replace_all(x, c("1" = "one", "2" = "two", "3" = "three"))
+```
+
+除了使用固定字符串，我们还可以使用引用来插入匹配的分组。下面的代码我们交换第二个单词和第三个单词的顺序：
+
+```{r}
+sentences %>% head(5)
+sentences %>% 
+    str_replace("([^ ]+) ([^ ]+) ([^ ]+)", "\\1 \\3 \\2") %>% 
+    head(5)
+```
+
+
 ### 拆分
 
+`str_split()`函数可以将字符串拆分为多个片段。比如把句子拆分为单词：
+
+```{r}
+sentences %>% 
+    head(5) %>% 
+    str_split(" ")
+```
+
+因为拆分句子产生的单词数目不一样，所以函数结果返回一个列表。如果我们想要返回一个矩阵，可以通过`simplify = TRUE`进行指定。
+
+```{r}
+sentences %>% 
+    head(5) %>% 
+    str_split(" ", simplify = TRUE)
+```
+
+我们可以设定拆分片段的最大数量：
+
+```{r}
+fields = c("Name:诗翔", "Country:CN", "Age:24")
+fields %>% str_split(":", n = 2, simplify = TRUE)
+```
+
+**我们还可以通过字母、行、句子和单词边界（`boundary()`函数）来拆分字符串**：
+
+```{r}
+x = "This is a sentence. This is another sentence."
+str_view_all(x, boundary("word"))
+```
+
+```{r}
+str_split(x, " ")[[1]]
+
+str_split(x, boundary("word"))[[1]]
+```
+
+### 定位匹配内容
+
+`str_locate()`与`str_locate_all()`函数可以给出每个匹配的开始位置和结束位置。**当没有其他函数能够精确满足需求时该函数非常有用，我们可以使用`str_locate()`函数找出匹配的模式，然后使用`str_sub()`来提取和修改匹配的内容**。
+
 ## 其他类型模式
+
+当一个字符串作为模式时，R内部使用`regex()`函数进行了包装：
+
+```{r}
+# 正常调用
+str_view(fruit, "nana")
+# 上面实质上是下面的简写
+str_view(fruit, regex("nana"))
+```
+
+因而我们可以通过设定`regex()`的其他参数来控制匹配方式。
+
+* `ignore_case = TRUE`：允许匹配大小写
+* `multline = TRUE`可以使`^`和`$`锚定每行的开头和末尾，而不是整个字符串的开头和末尾
+* `comment = TRUE`，这可以让我们在复杂的正则表达式中加入注释和空白字符，以便理解。如要匹配空格，使用`\\ `。
+    ```{r}
+    phone = regex("
+                  \\(?          # 可选的小括号开头
+                  (\\d{3})      # 地区编号
+                  [)- ]?        # 可选的小括号结尾、短划线或空格
+                  (\\d{3})      # 另外3个数字
+                  [ -]?         # 可选的空格或短划线
+                  (\\d{3})      # 另外3个数字
+                  ", comment = TRUE)
+    str_match("514-791-8141", phone)
+    ```
+
+* `dotall = TRUE`可以匹配包括`\n`在内的所有字符
 
 ## 正则表达式其他应用
 
