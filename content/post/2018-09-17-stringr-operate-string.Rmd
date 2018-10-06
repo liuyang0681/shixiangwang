@@ -500,9 +500,53 @@ str_view(fruit, regex("nana"))
 
 * `dotall = TRUE`可以匹配包括`\n`在内的所有字符
 
+除了`regex()`，我们还可以使用另外3种函数：
+
+* `fixed()`函数 - 可以按照字符串的字节形式进行精确匹配，它会忽略正则表达式中的所有特殊字符，在非常低的层次上进行操作。这样我们可以不用进行转义，并且速度也要快得多。下面是一个简单的测试示例，它的速度差不多是普通正则表达式的3倍。
+```{r}
+microbenchmark::microbenchmark(
+    fixed = str_detect(sentences, fixed("the")),
+    regex = str_detect(sentences, "the"),
+    times = 20
+)
+```
+
+* `coll()`函数使用标准排序规则来比较字符串，**这在进行不区分大小写的匹配时时非常有效的**，但速度很慢。注意，我们可以在`coll()`中设定locale参数，以确定使用哪种规则来比较字符。世界各地使用的规则是不同的。另外，我们可以使用下面代码查看默认区域设置：
+
+```{r}
+stringi::stri_locale_info()
+```
+
+* `boundary()`函数可以用来匹配边界，我们可以在其他字符串操作函数中使用它
+
+```{r}
+x = "This is  a sentence"
+str_view_all(x, boundary("word"))
+
+str_extract_all(x, boundary("word"))
+```
+
+
 ## 正则表达式其他应用
 
+R基础包中存在2个常用函数，它们可以使用正则表达式：
+
+* `apropos()`函数在全局环境中搜索所有可用对象，当不记得函数名时非常有用：
+```{r}
+apropos("replace")
+```
+
+* `dir()`函数列出一个目录下的所有文件，其参数pattern可以是一个正则表达式：
+
+```{r}
+head(dir(pattern = "\\.Rmd$"))
+```
+
 ## stringi
+
+**stringr**是建立于**stringi**基础之上的。stringr比较容易学习（书上写非常容易，我个人并不这样认为）——它只提供少惊醒挑选的函数，可以完成常见大部分的字符串操作。而stringi的设计思想是尽量全面，几乎包含了我们可以用到的所有函数，共234个。
+
+当我们从stringr过渡到stringi时会比较容易，相应的函数会经历`str_`到`stri_`的转变。
 
 ## 线程信息
 

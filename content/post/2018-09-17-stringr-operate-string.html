@@ -17,12 +17,12 @@ tags:
 
 <p>导入包：</p>
 <pre class="r"><code>library(tidyverse)
-#&gt; ─ Attaching packages ───────────────────────────────────── tidyverse 1.2.1 ─
+#&gt; ─ Attaching packages ─────────────────────────────────────────────────── tidyverse 1.2.1 ─
 #&gt; ✔ ggplot2 3.0.0     ✔ purrr   0.2.5
 #&gt; ✔ tibble  1.4.2     ✔ dplyr   0.7.6
 #&gt; ✔ tidyr   0.8.1     ✔ stringr 1.3.1
 #&gt; ✔ readr   1.1.1     ✔ forcats 0.3.0
-#&gt; ─ Conflicts ─────────────────────────────────────── tidyverse_conflicts() ─
+#&gt; ─ Conflicts ──────────────────────────────────────────────────── tidyverse_conflicts() ─
 #&gt; ✖ dplyr::filter() masks stats::filter()
 #&gt; ✖ dplyr::lag()    masks stats::lag()
 library(stringr)</code></pre>
@@ -506,19 +506,78 @@ str_match(&quot;514-791-8141&quot;, phone)
 #&gt; [1,] &quot;514-791-814&quot; &quot;514&quot; &quot;791&quot; &quot;814&quot;</code></pre></li>
 <li><p><code>dotall = TRUE</code>可以匹配包括<code>\n</code>在内的所有字符</p></li>
 </ul>
+<p>除了<code>regex()</code>，我们还可以使用另外3种函数：</p>
+<ul>
+<li><code>fixed()</code>函数 - 可以按照字符串的字节形式进行精确匹配，它会忽略正则表达式中的所有特殊字符，在非常低的层次上进行操作。这样我们可以不用进行转义，并且速度也要快得多。下面是一个简单的测试示例，它的速度差不多是普通正则表达式的3倍。</li>
+</ul>
+<pre class="r"><code>microbenchmark::microbenchmark(
+    fixed = str_detect(sentences, fixed(&quot;the&quot;)),
+    regex = str_detect(sentences, &quot;the&quot;),
+    times = 20
+)
+#&gt; Unit: microseconds
+#&gt;   expr   min  lq mean median  uq max neval
+#&gt;  fixed  99.7 103  122    106 120 316    20
+#&gt;  regex 347.8 369  388    384 397 513    20</code></pre>
+<ul>
+<li><code>coll()</code>函数使用标准排序规则来比较字符串，<strong>这在进行不区分大小写的匹配时时非常有效的</strong>，但速度很慢。注意，我们可以在<code>coll()</code>中设定locale参数，以确定使用哪种规则来比较字符。世界各地使用的规则是不同的。另外，我们可以使用下面代码查看默认区域设置：</li>
+</ul>
+<pre class="r"><code>stringi::stri_locale_info()
+#&gt; $Language
+#&gt; [1] &quot;zh&quot;
+#&gt; 
+#&gt; $Country
+#&gt; [1] &quot;CN&quot;
+#&gt; 
+#&gt; $Variant
+#&gt; [1] &quot;&quot;
+#&gt; 
+#&gt; $Name
+#&gt; [1] &quot;zh_CN&quot;</code></pre>
+<ul>
+<li><code>boundary()</code>函数可以用来匹配边界，我们可以在其他字符串操作函数中使用它</li>
+</ul>
+<pre class="r"><code>x = &quot;This is  a sentence&quot;
+str_view_all(x, boundary(&quot;word&quot;))</code></pre>
+<div id="htmlwidget-19" style="width:960px;height:100%;" class="str_view html-widget"></div>
+<script type="application/json" data-for="htmlwidget-19">{"x":{"html":"<ul>\n  <li><span class='match'>This<\/span> <span class='match'>is<\/span>  <span class='match'>a<\/span> <span class='match'>sentence<\/span><\/li>\n<\/ul>"},"evals":[],"jsHooks":[]}</script>
+<pre class="r"><code>
+str_extract_all(x, boundary(&quot;word&quot;))
+#&gt; [[1]]
+#&gt; [1] &quot;This&quot;     &quot;is&quot;       &quot;a&quot;        &quot;sentence&quot;</code></pre>
 </div>
 <div class="section level2">
 <h2>正则表达式其他应用</h2>
+<p>R基础包中存在2个常用函数，它们可以使用正则表达式：</p>
+<ul>
+<li><code>apropos()</code>函数在全局环境中搜索所有可用对象，当不记得函数名时非常有用：</li>
+</ul>
+<pre class="r"><code>apropos(&quot;replace&quot;)
+#&gt; [1] &quot;%+replace%&quot;       &quot;replace&quot;          &quot;replace_na&quot;      
+#&gt; [4] &quot;setReplaceMethod&quot; &quot;str_replace&quot;      &quot;str_replace_all&quot; 
+#&gt; [7] &quot;str_replace_na&quot;   &quot;theme_replace&quot;</code></pre>
+<ul>
+<li><code>dir()</code>函数列出一个目录下的所有文件，其参数pattern可以是一个正则表达式：</li>
+</ul>
+<pre class="r"><code>head(dir(pattern = &quot;\\.Rmd$&quot;))
+#&gt; [1] &quot;2015-07-23-r-rmarkdown.Rmd&quot;                   
+#&gt; [2] &quot;2018-03-21-data-transformation-with-dplyr.Rmd&quot;
+#&gt; [3] &quot;2018-03-22-combine-tech-with-art.Rmd&quot;         
+#&gt; [4] &quot;2018-03-23-test_poem.Rmd&quot;                     
+#&gt; [5] &quot;2018-04-13-Pubmed_trend_for_report.Rmd&quot;       
+#&gt; [6] &quot;2018-04-23-our-city-here.Rmd&quot;</code></pre>
 </div>
 <div id="stringi" class="section level2">
 <h2>stringi</h2>
+<p><strong>stringr</strong>是建立于<strong>stringi</strong>基础之上的。stringr比较容易学习（书上写非常容易，我个人并不这样认为）——它只提供少惊醒挑选的函数，可以完成常见大部分的字符串操作。而stringi的设计思想是尽量全面，几乎包含了我们可以用到的所有函数，共234个。</p>
+<p>当我们从stringr过渡到stringi时会比较容易，相应的函数会经历<code>str_</code>到<code>stri_</code>的转变。</p>
 </div>
 <div class="section level2">
 <h2>线程信息</h2>
 <pre class="r"><code>sessionInfo()
 #&gt; R version 3.5.1 (2018-07-02)
 #&gt; Platform: x86_64-apple-darwin15.6.0 (64-bit)
-#&gt; Running under: macOS High Sierra 10.13.6
+#&gt; Running under: macOS High Sierra 10.13.5
 #&gt; 
 #&gt; Matrix products: default
 #&gt; BLAS: /Library/Frameworks/R.framework/Versions/3.5/Resources/lib/libRblas.0.dylib
@@ -536,21 +595,22 @@ str_match(&quot;514-791-8141&quot;, phone)
 #&gt;  [9] ggplot2_3.0.0   tidyverse_1.2.1 pacman_0.4.6   
 #&gt; 
 #&gt; loaded via a namespace (and not attached):
-#&gt;  [1] tidyselect_0.2.4    xfun_0.3            haven_1.1.2        
-#&gt;  [4] lattice_0.20-35     colorspace_1.3-2    htmltools_0.3.6    
-#&gt;  [7] yaml_2.2.0          utf8_1.1.4          rlang_0.2.2        
-#&gt; [10] pillar_1.3.0        glue_1.3.0          withr_2.1.2        
-#&gt; [13] modelr_0.1.2        readxl_1.1.0        bindr_0.1.1        
-#&gt; [16] plyr_1.8.4          munsell_0.5.0       blogdown_0.8       
-#&gt; [19] gtable_0.2.0        cellranger_1.1.0    rvest_0.3.2        
-#&gt; [22] htmlwidgets_1.2     evaluate_0.11       knitr_1.20         
-#&gt; [25] fansi_0.3.0         broom_0.5.0         Rcpp_0.12.18       
-#&gt; [28] scales_1.0.0        backports_1.1.2     jsonlite_1.5       
-#&gt; [31] hms_0.4.2           digest_0.6.16       stringi_1.2.4      
-#&gt; [34] bookdown_0.7        grid_3.5.1          rprojroot_1.3-2    
-#&gt; [37] cli_1.0.0           tools_3.5.1         magrittr_1.5       
-#&gt; [40] lazyeval_0.2.1.9000 crayon_1.3.4        pkgconfig_2.0.2    
-#&gt; [43] xml2_1.2.0          lubridate_1.7.4     assertthat_0.2.0   
-#&gt; [46] rmarkdown_1.10      httr_1.3.1          rstudioapi_0.7     
-#&gt; [49] R6_2.2.2            nlme_3.1-137        compiler_3.5.1</code></pre>
+#&gt;  [1] tidyselect_0.2.4     xfun_0.3             haven_1.1.2         
+#&gt;  [4] lattice_0.20-35      colorspace_1.3-2     htmltools_0.3.6     
+#&gt;  [7] yaml_2.2.0           utf8_1.1.4           rlang_0.2.2         
+#&gt; [10] pillar_1.3.0         glue_1.3.0           withr_2.1.2         
+#&gt; [13] modelr_0.1.2         readxl_1.1.0         bindr_0.1.1         
+#&gt; [16] plyr_1.8.4           munsell_0.5.0        blogdown_0.8        
+#&gt; [19] gtable_0.2.0         cellranger_1.1.0     rvest_0.3.2         
+#&gt; [22] htmlwidgets_1.2      evaluate_0.11        knitr_1.20          
+#&gt; [25] fansi_0.3.0          broom_0.5.0          Rcpp_0.12.18        
+#&gt; [28] scales_1.0.0         backports_1.1.2      jsonlite_1.5        
+#&gt; [31] microbenchmark_1.4-4 hms_0.4.2            digest_0.6.15       
+#&gt; [34] stringi_1.2.4        bookdown_0.7         grid_3.5.1          
+#&gt; [37] rprojroot_1.3-2      cli_1.0.0            tools_3.5.1         
+#&gt; [40] magrittr_1.5         lazyeval_0.2.1       crayon_1.3.4        
+#&gt; [43] pkgconfig_2.0.2      xml2_1.2.0           lubridate_1.7.4     
+#&gt; [46] assertthat_0.2.0     rmarkdown_1.10       httr_1.3.1          
+#&gt; [49] rstudioapi_0.7       R6_2.2.2             nlme_3.1-137        
+#&gt; [52] compiler_3.5.1</code></pre>
 </div>
