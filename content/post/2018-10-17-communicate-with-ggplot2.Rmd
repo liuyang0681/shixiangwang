@@ -1,0 +1,122 @@
+---
+title: "图形沟通：ggplot2"
+author: 王诗翔
+date: 2018-10-17
+slug: "communicate-with-ggplot2"
+categories: 
+    - R
+tags:
+    - ggplot2
+    - dplyr
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(collapse = TRUE, dev = "png", comment = "#>")
+#Sys.setlocale('LC_ALL','C') # Embed this directly in the Rmarkdown script that contains the Chinese character comment
+options(digits=3)
+options(max.print=200)
+```
+
+## 准备工作
+
+```{r}
+library(tidyverse)
+```
+
+## 标签
+
+添加标签就是设置横轴、纵轴的解释文字和标题。我们使用`labs()`函数实现它。
+
+```{r}
+ggplot(mpg, aes(displ, hwy)) + 
+    geom_point(aes(color = class)) + 
+    geom_smooth(se = FALSE) + 
+    labs(
+        title = paste(
+            "Fuel efficiency generally decreases with",
+            "engine size"
+        )
+    )
+```
+
+**使用标题的目的是概况主要成果。尽量不要使用那些只对图形进行描述的标题，如“发动机排量与燃油效率图”**。（学到了~）
+
+使用`subtitle`和`caption`可以为添加更多的文本，前者添加在标题下，后者一般添加在右下角，用于描述数据来源。
+
+```{r}
+ggplot(mpg, aes(displ, hwy)) + 
+    geom_point(aes(color = class)) + 
+    geom_smooth(se = FALSE) + 
+    labs(
+        title = paste(
+            "Fuel efficiency generally decreases with",
+            "engine size"
+        ),
+        subtitle = paste(
+            "Two seaters (sports car) are an exception",
+            "because of their light weight"
+        ),
+        caption = "Data from fueleconomy.com"
+    )
+```
+
+我们还可以使用`labs()`函数替换坐标轴和图例的标题。
+
+```{r}
+ggplot(mpg, aes(displ, hwy)) + 
+    geom_point(aes(color = class)) + 
+    geom_smooth(se = FALSE) + 
+    labs(
+        x = "Engine displacement (L)",
+        y = "Highway fuel economy (mpg)",
+        color = "Car type"
+    )
+```
+
+我们还可以在标题中使用数学公式代替字符串文本，使用`quote()`函数代替`""`，再使用`?plotmath`命令查看可用选项：
+
+```{r}
+df = tibble(
+    x = runif(10),
+    y = runif(10)
+)
+
+ggplot(df, aes(x, y)) + 
+    geom_point() +
+    labs(
+        x = quote(sum(x[i] ^ 2, i == 1, n)),
+        y = quote(alpha + beta + frac(delta, theta))
+    )
+```
+
+## 注释
+
+除了为图形的主要部分添加标签，有时我们还想对单个观测或分组观测添加标签。可用使用`geom_text()`函数，它的用法基本与`geom_point()`函数相同，但提供了一个额外的图形属性`label`，我们可以通过该属性添加文字。
+
+可以通过2种方法提供标签。
+
+首先，可以使用tibble。下面标记每类汽车中效率最高的型号。
+
+```{r}
+best_in_class = mpg %>% 
+    group_by(class) %>% 
+    filter(row_number(desc(hwy)) == 1)
+ggplot(mpg, aes(displ, hwy)) +
+    geom_point(aes(color = class)) + 
+    geom_text(aes(label = model), data = best_in_class)
+```
+
+上面的图标签重叠，数据点混在一起，所以不是很好看。改进的方式是使用`geom_label()`替换，它可以给文本加个方框，另外我们可以用`nudge_y`参数让标签位于数据点的正上方：
+
+```{r}
+ggplot(mpg, aes(displ, hwy)) +
+    geom_point(aes(color = class)) + 
+    geom_label(
+        aes(label = model),
+        data = best_in_class,
+        nudge_y =  2,
+        alpha = 0.5
+    )
+```
+
