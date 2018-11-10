@@ -70,7 +70,6 @@ To be able to execute all the steps of this workflow please install it with the 
 if (!"BiocManager" %in% rownames(installed.packages()))
      install.packages("BiocManager")
 BiocManager::install("TCGAWorkflow")
-BiocInstaller::biocLite("TCGAWorkflow", dependencies = TRUE)
 ```
 
 ## Loading packages
