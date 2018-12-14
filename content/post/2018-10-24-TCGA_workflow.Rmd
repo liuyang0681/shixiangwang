@@ -27,6 +27,7 @@ knitr::opts_chunk$set(message = FALSE,
                       quite = TRUE)
 options(digits=3)
 options(max.print=200)
+X11.options(type = "cairo")
 ```
 
 __译者：王诗翔__
