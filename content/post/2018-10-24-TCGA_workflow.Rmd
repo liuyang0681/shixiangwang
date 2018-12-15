@@ -156,32 +156,18 @@ molecular level and importantly, correlate these phenotypes with tissue
 of origins.
 
 
-尽管，
-
-Although there exists a wealth of possibilities [@kannan2015public] in
-accessing cancer associated data,
-[Bioconductor](http://www.bioconductor.org/) represents the most
-comprehensive set of open source, updated and integrated professional
-tools for the statistical analysis of large-scale genomic data. Thus, we
-propose our workflow within Bioconductor to describe how to download,
-process, analyze and integrate cancer data to understand specific
-cancer-related specific questions. However, there is no tool that solves
-the issue of integration in a comprehensive sequence and mutation
-information, epigenomic state and gene expression within the context of
-gene regulatory networks to identify oncogenic drivers and characterize
-altered pathways during cancer progression. Therefore, our workflow
-presents several [Bioconductor](http://www.bioconductor.org/) packages
-to work with genomic and epigenomics data.
+尽管存在很多种访问癌症相关数据的方式[@kannan2015public]，[Bioconductor](http://www.bioconductor.org/)是极好的开源、及时更新、专业用于大规模基因组学数据统计分析的综合性工具集。因此，我们使用Bioconductor来推出我们的工作流程，描述如何下载、处理、分析和整合癌症数据，以此理解癌症相关的特定问题。但是，并不存在单一的工具能够解决通过基因调控网络中序列、突变、表观、表达的整合识别驱动事件识别、癌症发展变异通路。因此，我们的工作流处理基因组和表观数据是建立在多个Bioconductor工具之上的。
 
 
-# Methods
-## Access to the data
+# 方法
+## 获取数据
 
-TCGA data is accessible via the NCI Genomic Data Commons (GDC) [data
-portal](https://gdc-portal.nci.nih.gov/), [GDC Legacy
-Archive](https://gdc-portal.nci.nih.gov/legacy-archive/search/f) and the
-[Broad Institute’s GDAC Firehose](gdac.broadinstitute.org). The GDC Data
-Portal provides access to the subset of TCGA data that has been
+TCGA数据可以通过NCI Genomic Data Commons (GDC) [data
+portal](https://gdc-portal.nci.nih.gov/)、[GDC Legacy
+Archive](https://gdc-portal.nci.nih.gov/legacy-archive/search/f)和
+[Broad Institute’s GDAC Firehose](gdac.broadinstitute.org)等数据库获取。
+
+> The GDC Data Portal provides access to the subset of TCGA data that has been
 harmonized against GRCh38 (hg38) using GDC Bioinformatics Pipelines
 which provides methods to the standardization of biospecimen and
 clinical data, the re-alignment of DNA and RNA sequence data against a
@@ -191,16 +177,16 @@ copy of data that was previously stored in
 [CGHub](https://cghub.ucsc.edu/)[@wilks2014cancer] and in the TCGA Data
 Portal hosted by the TCGA Data Coordinating Center (DCC), in which uses
 as references GRCh37 (hg19) and GRCh36 (hg18).
-
-The previously stored data in CGHub, TCGA Data Portal and Broad
+>
+> The previously stored data in CGHub, TCGA Data Portal and Broad
 Institute’s GDAC Firehose, were provided as different levels or tiers
 that were defined in terms of a specific combination of both processing
 level (raw, normalized, integrated) and access level (controlled or open
-access). Level 1 indicated raw and controlled data, level 2 indicated
+access). __Level 1 indicated raw and controlled data, level 2 indicated
 processed and controlled data, level 3 indicated Segmented or
 Interpreted Data and open access and level 4 indicated region of
 interest and open access data. While the TCGA data portal provided level
-1 to 3 data, Firehose only provides level 3 and 4. An explanation of the
+1 to 3 data, Firehose only provides level 3 and 4__. An explanation of the
 different levels can be found at [TCGA
 Wiki](https://wiki.nci.nih.gov/display/TCGA/Data+level). However, the
 GDC data portal no longer uses this based classification model in
@@ -219,80 +205,30 @@ elements. The process to obtain access to controlled data is found in
 [GDC web
 site](https://gdc.nci.nih.gov/access-data/obtaining-access-controlled-data).
 
-Finally, the data provided by [GDC data
-portal](https://gdc-portal.nci.nih.gov/) and [GDC Legacy
-Archive](https://gdc-portal.nci.nih.gov/legacy-archive/search/f) can be
-accessed using Bioconductor package
-[TCGAbiolinks](http://bioconductor.org/packages/TCGAbiolinks/), while
-the data provided by Firehose can be accessed by Bioconductor package
-[RTCGAToolbox](http://bioconductor.org/packages/RTCGAToolbox/).
+[GDC data portal](https://gdc-portal.nci.nih.gov/)和[GDC Legacy Archive](https://gdc-portal.nci.nih.gov/legacy-archive/search/f)提供的数据可以使用Bioconductor包[TCGAbiolinks](http://bioconductor.org/packages/TCGAbiolinks/)，而Firehose提供的数据可以通过Bioconductor包
+[RTCGAToolbox](http://bioconductor.org/packages/RTCGAToolbox/)获取。
 
-The next steps describe how one could use
-[TCGAbiolinks](http://bioconductor.org/packages/TCGAbiolinks/) &
-[RTCGAToolbox](http://bioconductor.org/packages/RTCGAToolbox/) to
-download clinical, genomics, transcriptomics, epigenomics data, as well
-as subtype information and GISTIC results (i.e., identified genes
-targeted by somatic copy-number alterations (SCNAs) that drive cancer
-growth). All the data used in this workflow has as reference the Genome
-Reference Consortium human genome (build 37 - hg19).
+下一步将描述读者如何使用[TCGAbiolinks](http://bioconductor.org/packages/TCGAbiolinks/) &
+[RTCGAToolbox](http://bioconductor.org/packages/RTCGAToolbox/)去下载临床信息、基因组数据、转录组数据、表观组数据以及亚型信息和GISTIC结果。这个工作流中使用的所有数据都基于参考基因组版本hg19。
 
-### Downloading data from TCGA data portal
+### 从TCGA数据中心下载数据
 
-The Bioconductor package
-[TCGAbiolinks](http://bioconductor.org/packages/TCGAbiolinks/)
-[@TCGAbiolinks] has three main functions *GDCquery*, *GDCdownload* and
-*GDCprepare* that should sequentially be used to respectively search,
-download and load the data as an R object.
+[TCGAbiolinks](http://bioconductor.org/packages/TCGAbiolinks/)[@TCGAbiolinks]包有3个主要的函数：*GDCquery*、*GDCdownload*和*GDCprepare*，它们依次用于数据的搜索、下载以及载入R。 
 
-*GDCquery* uses [GDC
-API](https://gdc.cancer.gov/developers/gdc-application-programming-interface-api)
-to search the data for a given project and data category and filters the
-results by samples, sample type, file type and others features if
-requested by the user. This function returns an object with a summary
-table with the results found (samples, files and other useful
-information) and the arguments used in the query. The most important
-*GDCquery* arguments are *project* which receives a GDC project
-(TCGA-USC, TCGA-LGG, TARGET-AML, etc), *data.category* which receives a
-data category (Transcriptome Profiling, Copy Number Variation, DNA
-methylation, Gene expression, etc), *data.type* which receives a data
-type (Gene expression quantification, Isoform Expression Quantification,
+*GDCquery*使用[GDC API](https://gdc.cancer.gov/developers/gdc-application-programming-interface-api)去对一个给定的项目和数据分类搜索数据，并可以根据样本、样本类型、文件类型和其他特征进行结果的过滤。该函数返回一个搜索结果和查询参数的汇总表格（包括样本、文件和其他有用信息）。*GDCquery*最重要的参数有：*project*，它接受一个GDC项目名(TCGA-USC, TCGA-LGG, TARGET-AML等)；*data.category*，它接受一个数据分类（Transcriptome Profiling, Copy Number Variation, DNA
+methylation, Gene expression等）；*data.type* ，它接受一个数据类型（Gene expression quantification, Isoform Expression Quantification,
 miRNA Expression Quantification, Copy Number Segment, Masked Copy Number
-Segment, etc), *workflow.type*, which receives a GDC workflow type
-(HTSeq - Counts, HTSeq - FPKM-UQ, HTSeq - FPKM), *legacy*, which selects
-to use the legacy database or the harmonized database, *file.type*,
-which receives a file type for the searches in the legacy database
-(hg18.seg, hg19.seg, nocnv\_,hg18.seg, nocnv\_hg19.seg,
-rsem.genes.results, rsem.genes.normalized\_results, etc) and *platform*,
-which receives a platform for the searches in the legacy database
-(HumanMethylation27, Genome\_Wide\_SNP\_6, IlluminaHiSeq\_RNASeqV2,
-etc). A complete list of possible entries for arguments can be found in
-the [TCGAbiolinks
-vignette](https://www.bioconductor.org/packages/3.3/bioc/vignettes/TCGAbiolinks/inst/doc/tcgaBiolinks.html#harmonized-data-1).
-Listing 1 shows an example of this function.
+Segment等）； *workflow.type*，它接受一个GDC工作流类型（HTSeq - Counts, HTSeq - FPKM-UQ, HTSeq - FPKM等）；*legacy*，它选择legacy数据库（hg19）； *file.type*，它接受一个搜索legacy数据库的文件类型（hg18.seg, hg19.seg, nocnv\_,hg18.seg, nocnv\_hg19.seg,
+rsem.genes.results, rsem.genes.normalized\_results等）；*platform*，它接受一个搜索legacy数据库的平台信息（HumanMethylation27, Genome\_Wide\_SNP\_6, IlluminaHiSeq\_RNASeqV2等）。
 
-After the search step, the user will be able to download the data using
-the *GDCdownload* function which can use either the GDC API to download
-the samples, or the [gdc client
-tools](https://gdc.cancer.gov/access-data/gdc-data-transfer-tool). The
-downloaded data will be saved in a directory with the project name and a
-sub-folder with the data.category, for example
-"TCGA-GBM/DNA\_methylation".
+__完整的参数列表可以在[TCGAbiolinks vignette](https://www.bioconductor.org/packages/3.3/bioc/vignettes/TCGAbiolinks/inst/doc/tcgaBiolinks.html#harmonized-data-1)找到__。
 
-Finally, *GDCprepare* transforms the downloaded data into a
-[summarizedExperiment](http://bioconductor.org/packages/SummarizedExperiment/)
-object [@huber2015orchestrating] or a data frame. If
-*SummarizedExperiment* is set to TRUE, TCGAbiolinks will add to the
-object sub-type information, which was defined by The Cancer Genome
-Atlas (TCGA) Research Network reports (the full list of papers can be
-seen in [TCGAquery\_subtype
-section](http://bioconductor.org/packages/devel/bioc/vignettes/TCGAbiolinks/inst/doc/tcgaBiolinks.html#tcgaquery_subtype-working-with-molecular-subtypes-data.)
-in TCGAbiolinks vignette), and clinical information. Listing
-1 shows how to use these functions to download DNA
-methylation and gene expression data from the GDC legacy database and
-2 shows how to download copy number
-variation from harmonized data portal. Other examples, that access the
-harmonized data can be found in the [TCGAbiolinks
-vignette](https://www.bioconductor.org/packages/3.3/bioc/vignettes/TCGAbiolinks/inst/doc/tcgaBiolinks.html).
+代码列表1展示了该函数的一个例子。
+
+在完成搜索步骤后，用户可以用*GDCdownload*函数下载数据，它支持GDC API或者[gdc client
+tools](https://gdc.cancer.gov/access-data/gdc-data-transfer-tool)下载。下载的数据将会保存在一个目录中，该目录名为项目名，子目录是数据类型，如"TCGA-GBM/DNA\_methylation"。
+
+最后，*GDCprepare*函数将下载的数据转换为一个[summarizedExperiment](http://bioconductor.org/packages/SummarizedExperiment/)对象[@huber2015orchestrating]或是数据框。如果*SummarizedExperiment*设置为TRUE，TCGAbiolinks会为对象添加子类型信息和临床信息，它是The Cancer Genome Atlas (TCGA) Research Network reports所定义的（完整列表见 [TCGAquery\_subtype section](http://bioconductor.org/packages/devel/bioc/vignettes/TCGAbiolinks/inst/doc/tcgaBiolinks.html#tcgaquery_subtype-working-with-molecular-subtypes-data)）。代码列表1显示了如何使用这些函数下载hg19版本DNA甲基化和基因表达数据，代码列表2显示下载拷贝数变异数据。其他例子参见[TCGAbiolinks vignette](https://www.bioconductor.org/packages/3.3/bioc/vignettes/TCGAbiolinks/inst/doc/tcgaBiolinks.html)。
 
 
 ```{R, eval=FALSE, include=TRUE}
@@ -357,12 +293,8 @@ query <- GDCquery("TCGA-ACC",
 GDCdownload(query)
 data <- GDCprepare(query)
 ```
-If a [SummarizedExperiment object](http://www.nature.com/nmeth/journal/v12/n2/fig_tab/nmeth.3252_F2.html) was chosen, the data can be accessed
-with three different accessors: *assay* for the data information,
-*rowRanges* to gets the range of values in each row and *colData* to get
-the sample information (patient, batch, sample type, etc)
-[@huber2015orchestrating; @SummarizedExperiment]. An example is shown in
-listing below.
+
+如果选择了[SummarizedExperiment object](http://www.nature.com/nmeth/journal/v12/n2/fig_tab/nmeth.3252_F2.html)对象，用户可以通过*assay*访问数据信息、*rowRanges*获取每一行的值范围、*colData*获取样本信息（病人、批次、样本类型等）[@huber2015orchestrating; @SummarizedExperiment]。下面代码列表展示了一个例子。
 
 
 ```{R, eval=TRUE, include=TRUE}
@@ -385,19 +317,10 @@ datatable(as.data.frame(sample.info),
           rownames = FALSE)
 ```
 
-The clinical data can be obtained using TCGAbiolinks through two
-methods. The first one will download only the indexed GDC clinical data
-which includes diagnoses (vital status, days to death, age at diagnosis,
-days to last follow up, days to recurrence), treatments (days to
-treatment, treatment id, therapeutic agents, treatment intent type),
-demographic (gender, race, ethnicity) and exposures (cigarettes per day,
-weight, height, alcohol history) information. This indexed clinical data
-can be obtained using the function *GDCquery\_clinical* which can be
-used as described in listing below. This function has two
-arguments *project* ("TCGA-GBM","TARGET-AML",etc) and *type* ("Clinical"
-or "Biospecimen"). The second method will download the XML files with
-all clinical data for the patient and retrieve the desired information
-from it. This will give access to all clinical data available which
+使用TCGAbiolinks下载临床数据有两种方式，第一种是仅下载GDC索引临床信息，它包括诊断（生存状态、多少天死亡的、诊断时年龄、随访了多少天、多少天复发）、治疗、统计（性别、种族等）、曝光（吸烟、体重、身高、饮酒历史）信息。该种临床信息可以使用下面代码中的*GDCquery\_clinical*函数获取。这个函数有两个参数：*project* ("TCGA-GBM","TARGET-AML"等)和*type* ("Clinical"
+或"Biospecimen"）。第二个方法是下载所有可获取临床信息（就是比前面那种方法多）的XML文件。
+
+>This will give access to all clinical data available which
 includes patient (tumor tissue site, histological type, gender, vital
 status, days to birth, days to last follow up, etc), drug (days to drug
 therapy start, days to drug therapy end, therapy types, drug name),
@@ -457,15 +380,8 @@ clinical.admin <- GDCprepare_clinic(query, clinical.info = "admin")
 datatable(clinical.admin, options = list(scrollX = TRUE, keys = TRUE), rownames = FALSE)
 ```
 
-Mutation information is stored in two types of Mutation Annotation
-Format (MAF): Protected and Somatic (or Public) MAF files, which are
-derived from the GDC annotated VCF files. Annotated VCF files often have
-variants reported on multiple transcripts whereas the protected MAF
-(\*protected.maf) only reports the most critically affected one and the
-Somatic MAFs (\*somatic.maf) are further processed to remove low quality
-and potential germline variants. To download Somatic MAFs data using
-[TCGAbiolinks](http://bioconductor.org/packages/TCGAbiolinks/),
-*GDCquery\_maf* function is provided (see listing below).
+突变信息存储在两种类型的MAF文件中：Protected和Somatic (or Public) MAF文件，它们都来自于GDC注释的VCF文件夹。注释的VCF文件通常有报告突变位点在多个转录本，而protected MAF文件仅报告最有临床意义的突变，somatic MAF过滤低质量突变和germline突变。想要下载Somatic MAF文件，使用[TCGAbiolinks](http://bioconductor.org/packages/TCGAbiolinks/)包的
+*GDCquery\_maf*函数。
 
 ```{R, eval=FALSE, include=TRUE}
 LGGmut <- GDCquery_Maf(tumor = "LGG", pipelines = "mutect2")
@@ -476,8 +392,7 @@ data(mafMutect2LGGGBM)
 datatable(LGGmut[1:10,], options = list(scrollX = TRUE, keys = TRUE), rownames = FALSE)
 ```
 
-Finally, the Cancer Genome Atlas (TCGA) Research Network has reported
-integrated genome-wide studies of various diseases (ACC
+TCGA研究报告了多个癌症亚型，ACC
 [@zheng2016comprehensive], BRCA [@cancer2012comprehensive_brca], COAD
 [@cancer2012comprehensive_colon], GBM [@Cell], HNSC
 [@cancer2015comprehensive], KICH [@davis2014somatic], KIRC
@@ -486,11 +401,7 @@ integrated genome-wide studies of various diseases (ACC
 [@cancer2012comprehensive_lusc], PRAD [@cancer2015molecular_prad], READ
 [@cancer2012comprehensive_colon], SKCM [@cancer2015genomic_skcm], STAD
 [@cancer2014comprehensive_stad], THCA [@cancer2014integrated_thca] and
-UCEC [@cancer2014comprehensive_gastric]) which classified them in
-different subtypes. This classification can be retrieved using the
-*TCGAquery\_subtype* function or by accessing the samples information in
-the SummarizedExperiment object that created by the *GDCprepare*
-function, which automatically incorporates it into the object.
+UCEC [@cancer2014comprehensive_gastric])。这些分类可以使用函数*TCGAquery\_subtype*获取数据或者使用*GDCprepare*函数，它会自动将数据整合进项目。
 
 ```{R, eval=TRUE, include=TRUE}
 gbm.subtypes <- TCGAquery_subtype(tumor = "gbm")
@@ -501,35 +412,23 @@ datatable(gbm.subtypes[1:10,], options = list(scrollX = TRUE, keys = TRUE), rown
 ```
 
 
-### Downloading data from Broad TCGA GDAC
+### 从Broad TCGA GDAC下载数据
 
-The Bioconductor package
-[RTCGAToolbox](http://bioconductor.org/packages/RTCGAToolbox/)
-[@samur2014rtcgatoolbox] provides access to Firehose Level 3 and 4 data
-through the function *getFirehoseData*. The following arguments allow
-users to select the version and tumor type of interest:
+Bioconductor包[RTCGAToolbox](http://bioconductor.org/packages/RTCGAToolbox/)
+[@samur2014rtcgatoolbox]可以使用函数*getFirehoseData*获取Firehose Level 3和4的数据。下面的参数允许用户选择感兴趣的肿瘤：
 
--   dataset - Tumor to download. A complete list of possibilities can be
-view with *getFirehoseDatasets* function.
+-   dataset - 要下载的肿瘤，完整列表使用函数*getFirehoseDatasets*获取
 
--   runDate - Stddata run dates. Dates can be viewed with
-*getFirehoseRunningDates* function.
+-   runDate - Stddata运行日期，列表使用函数*getFirehoseRunningDates*获取
 
--   gistic2\_Date - Analyze run dates. Dates can viewed with
-*getFirehoseAnalyzeDates* function.
+-   gistic2\_Date - 分析运行日期，使用*getFirehoseAnalyzeDates*函数获取
 
-These arguments can be used to select the data type to download:
+下面参数可以用来选择下载数据的类型：
 RNAseq\_Gene, Clinic, miRNASeq\_Gene, ccRNAseq2\_Gene\_Norm, CNA\_SNP,
 CNV\_SNP, CNA\_Seq, CNA\_CGH, Methylation, Mutation, mRNA\_Array ,
 miRNA\_Array, and RPPA.
 
-By default,
-[RTCGAToolbox](http://bioconductor.org/packages/RTCGAToolbox/) allows
-users to download up to 500 MB worth of data. To increase the size of
-the download, users are encouraged to use *fileSizeLimit* argument. An
-example is found in listing below. The *getData* function
-allows users to access the downloaded data (see lines 22-24 of listing
-below as an S4Vector object.
+默认，[RTCGAToolbox](http://bioconductor.org/packages/RTCGAToolbox/)允许用户下载至多500MB的数据。想要增加下载文件的大小，用户需要指定*fileSizeLimit*参数。下面代码展示了一个例子。函数*getData*允许用户以一个S4Vector对象访问下载的数据 function（见22-24行）。
 
 ```{R, eval=FALSE, include=TRUE}
 library(RTCGAToolbox)
@@ -551,9 +450,7 @@ gbm.mut <- getData(gbm.data,"Mutation")
 gbm.clin <- getData(gbm.data,"clinical")
 ```
 
-Finally, [RTCGAToolbox](http://bioconductor.org/packages/RTCGAToolbox/)
-can access level 4 data, which can be handy when the user requires
-GISTIC results. GISTIC is used to identify genes targeted by somatic
+最后[RTCGAToolbox](http://bioconductor.org/packages/RTCGAToolbox/)可以访问level 4数据，当用户需要GISTIC结果时需要手动指定。GISTIC is used to identify genes targeted by somatic
 copy-number alterations (SCNAs) [@mermel2011gistic2].
 
 ```{R, eval=FALSE, message=FALSE, warning=FALSE, include=TRUE}
@@ -577,7 +474,7 @@ datatable(gistic.thresholedbygene,
           rownames = FALSE)
 ```
 
-## Genomic analysis
+## 基因组分析
 
 
 Copy number variations (CNVs) have a critical role in cancer development
